@@ -1,0 +1,46 @@
+# Build outputs
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+TestResults/
+*.tlog
+*.log
+
+# Visual Studio cache and user settings
+.vs/
+*.rsuser
+*.suo
+*.user
+*.userprefs
+*.userosscache
+*.sln.docstates
+*.VC.db
+*.VC.opendb
+
+# NuGet packages and caches
+*.nupkg
+*.snupkg
+[Nn]u[Gg]et/
+packages/
+project.lock.json
+
+# WinUI 3 packaging artifacts
+AppPackages/
+AppxPackages/
+BundleArtifacts/
+Generated Files/
+Package.StoreAssociation.xml
+*.appx
+*.appxbundle
+*.msix
+*.msixbundle
+*.msixupload
+
+# Other common ignores
+*.pfx
+*.tmp
+*.cache
+*.swp
+Thumbs.db
+Desktop.ini
+.DS_Store
