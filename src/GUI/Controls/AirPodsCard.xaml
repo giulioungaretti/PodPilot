@@ -5,7 +5,6 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:models="using:GUI.Models"
     xmlns:converters="using:GUI.Converters"
     mc:Ignorable="d">
 
@@ -20,13 +19,15 @@
         <converters:InEarIconConverter x:Key="InEarIconConverter"/>
         <converters:LidStatusConverter x:Key="LidStatusConverter"/>
         <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
+        <converters:BoolToOpacityConverter x:Key="BoolToOpacityConverter"/>
     </UserControl.Resources>
 
     <Border CornerRadius="12" 
             Padding="24" 
             BorderThickness="1"
             Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            Opacity="{x:Bind Device.IsActive, Mode=OneWay, Converter={StaticResource BoolToOpacityConverter}}">
         
         <StackPanel Spacing="20">
             
@@ -44,16 +45,103 @@
                     </StackPanel>
                 </StackPanel>
                 
-                <!-- Signal Strength -->
-                <StackPanel Orientation="Horizontal" 
-                            Spacing="8"
-                            HorizontalAlignment="Right"
-                            VerticalAlignment="Center">
-                    <TextBlock Text="{x:Bind Device.SignalStrength, Mode=OneWay, Converter={StaticResource SignalStrengthConverter}}" 
-                               FontSize="12"
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                               VerticalAlignment="Center"/>
-                </StackPanel>
+                <!-- Connect/Disconnect Button and Status -->
+                <Grid HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <!-- Use a Grid with overlapping content and transitions for smooth state changes -->
+                    
+                    <!-- Connection Status Badge (Connected) -->
+                    <Border Background="{ThemeResource AccentFillColorDefaultBrush}"
+                            CornerRadius="12"
+                            Padding="8,4"
+                            Visibility="{x:Bind Device.IsConnected, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <Border.Transitions>
+                            <TransitionCollection>
+                                <EntranceThemeTransition FromHorizontalOffset="20"/>
+                            </TransitionCollection>
+                        </Border.Transitions>
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="✓" 
+                                       FontSize="12"
+                                       FontWeight="SemiBold"
+                                       Foreground="White"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock Text="Connected" 
+                                       FontSize="12"
+                                       FontWeight="SemiBold"
+                                       Foreground="White"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    
+                    <!-- Connecting Indicator (Subtle) -->
+                    <Border Background="{ThemeResource LayerFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                            BorderThickness="1"
+                            CornerRadius="12"
+                            Padding="10,6"
+                            Visibility="{x:Bind Device.IsConnecting, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <Border.Transitions>
+                            <TransitionCollection>
+                                <EntranceThemeTransition FromHorizontalOffset="20"/>
+                            </TransitionCollection>
+                        </Border.Transitions>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <ProgressRing Width="14" 
+                                          Height="14" 
+                                          IsActive="True"
+                                          Foreground="{ThemeResource AccentFillColorDefaultBrush}"
+                                          VerticalAlignment="Center"/>
+                            <TextBlock Text="Connecting" 
+                                       FontSize="12"
+                                       FontWeight="SemiBold"
+                                       Foreground="{ThemeResource AccentFillColorDefaultBrush}"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    
+                    <!-- Pair Device Button (Needs Pairing) -->
+                    <Button Command="{x:Bind Device.OpenBluetoothSettingsCommand, Mode=OneWay}"
+                            Visibility="{x:Bind Device.ShowPairMessage, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                            ToolTipService.ToolTip="Open Windows Bluetooth settings to pair your device">
+                        <Button.Transitions>
+                            <TransitionCollection>
+                                <EntranceThemeTransition FromHorizontalOffset="20"/>
+                            </TransitionCollection>
+                        </Button.Transitions>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="⚠" 
+                                       FontSize="14"
+                                       FontFamily="Segoe UI Emoji"
+                                       Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock Text="Pair Device" 
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    
+                    <!-- Connect Button (Default State) -->
+                    <Button Command="{x:Bind Device.ConnectCommand, Mode=OneWay}"
+                            Visibility="{x:Bind Device.ShowConnectButton, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                            Style="{StaticResource AccentButtonStyle}">
+                        <Button.Transitions>
+                            <TransitionCollection>
+                                <EntranceThemeTransition FromHorizontalOffset="20"/>
+                            </TransitionCollection>
+                        </Button.Transitions>
+                        <TextBlock Text="Connect"/>
+                    </Button>
+                    
+                    <!-- Disconnect Button -->
+                    <Button Command="{x:Bind Device.DisconnectCommand, Mode=OneWay}"
+                            Visibility="{x:Bind Device.IsConnected, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <Button.Transitions>
+                            <TransitionCollection>
+                                <EntranceThemeTransition FromHorizontalOffset="20"/>
+                            </TransitionCollection>
+                        </Button.Transitions>
+                        <TextBlock Text="Disconnect"/>
+                    </Button>
+                </Grid>
             </Grid>
 
             <!-- Battery Section -->
@@ -168,17 +256,6 @@
                     </StackPanel>
                 </Grid>
             </StackPanel>
-
-            <!-- Status Info -->
-            <Border CornerRadius="8" 
-                    Padding="12"
-                    Background="{ThemeResource SubtleFillColorSecondaryBrush}">
-                <TextBlock FontSize="12"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}">
-                    <Run Text="Last seen: "/>
-                    <Run Text="{x:Bind Device.LastSeen, Mode=OneWay, Converter={StaticResource TimeAgoConverter}}"/>
-                </TextBlock>
-            </Border>
 
         </StackPanel>
     </Border>
