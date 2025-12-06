@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "GUI.Tests (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "GUI.Tests (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
