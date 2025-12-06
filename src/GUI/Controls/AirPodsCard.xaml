@@ -186,11 +186,13 @@
             <StackPanel Orientation="Horizontal" 
                         Spacing="8"
                         Visibility="{x:Bind ShowActions, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                <Button Content="?? Save Device" 
-                        Click="OnSaveButtonClick"
+                <Button Content="💾 Save Device" 
+                        Command="{x:Bind SaveCommand, Mode=OneWay}"
+                        CommandParameter="{x:Bind Device, Mode=OneWay}"
                         Visibility="{x:Bind Device.IsSaved, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
-                <Button Content="??? Forget Device" 
-                        Click="OnForgetButtonClick"
+                <Button Content="🗑️ Forget Device" 
+                        Command="{x:Bind ForgetCommand, Mode=OneWay}"
+                        CommandParameter="{x:Bind Device, Mode=OneWay}"
                         Visibility="{x:Bind Device.IsSaved, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
             </StackPanel>
         </StackPanel>

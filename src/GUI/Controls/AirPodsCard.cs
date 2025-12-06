@@ -1,4 +1,4 @@
-using System;
+using System.Windows.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using DeviceCommunication.Models;
@@ -24,6 +24,20 @@ public sealed partial class AirPodsCard : UserControl
             typeof(AirPodsCard),
             new PropertyMetadata(true));
 
+    public static readonly DependencyProperty SaveCommandProperty =
+        DependencyProperty.Register(
+            nameof(SaveCommand),
+            typeof(ICommand),
+            typeof(AirPodsCard),
+            new PropertyMetadata(null));
+
+    public static readonly DependencyProperty ForgetCommandProperty =
+        DependencyProperty.Register(
+            nameof(ForgetCommand),
+            typeof(ICommand),
+            typeof(AirPodsCard),
+            new PropertyMetadata(null));
+
     public AirPodsDeviceInfo? Device
     {
         get => (AirPodsDeviceInfo?)GetValue(DeviceProperty);
@@ -36,23 +50,20 @@ public sealed partial class AirPodsCard : UserControl
         set => SetValue(ShowActionsProperty, value);
     }
 
-    public event EventHandler<AirPodsDeviceInfo>? SaveRequested;
-    public event EventHandler<AirPodsDeviceInfo>? ForgetRequested;
+    public ICommand? SaveCommand
+    {
+        get => (ICommand?)GetValue(SaveCommandProperty);
+        set => SetValue(SaveCommandProperty, value);
+    }
+
+    public ICommand? ForgetCommand
+    {
+        get => (ICommand?)GetValue(ForgetCommandProperty);
+        set => SetValue(ForgetCommandProperty, value);
+    }
 
     public AirPodsCard()
     {
         InitializeComponent();
-    }
-
-    private void OnSaveButtonClick(object sender, RoutedEventArgs e)
-    {
-        if (Device != null)
-            SaveRequested?.Invoke(this, Device);
-    }
-
-    private void OnForgetButtonClick(object sender, RoutedEventArgs e)
-    {
-        if (Device != null)
-            ForgetRequested?.Invoke(this, Device);
     }
 }
