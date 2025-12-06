@@ -15,7 +15,7 @@ namespace GUI.ViewModels;
 /// </summary>
 public partial class MainPageViewModel : ObservableObject, IDisposable
 {
-    private readonly AirPodsDiscoveryService _discoveryService;
+    private readonly IAirPodsDiscoveryService _discoveryService;
     private readonly SettingsService _settingsService;
     private readonly DispatcherQueue _dispatcherQueue;
 
@@ -33,7 +33,7 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<AirPodsDeviceInfo> DiscoveredDevices { get; }
 
-    public MainPageViewModel(AirPodsDiscoveryService discoveryService, SettingsService settingsService, DispatcherQueue dispatcherQueue)
+    public MainPageViewModel(IAirPodsDiscoveryService discoveryService, SettingsService settingsService, DispatcherQueue dispatcherQueue)
     {
         _discoveryService = discoveryService;
         _settingsService = settingsService;
