@@ -5,10 +5,10 @@ using DeviceCommunication.Models;
 namespace DeviceCommunication.Services;
 
 /// <summary>
-/// Provides functionality to discover AirPods devices via Bluetooth advertisements.
-/// Raises events when devices are discovered or updated, and allows scanning control.
+/// Simple address-based implementation of <see cref="IAirPodsDiscoveryService"/>.
+/// Tracks devices by their Bluetooth address without grouping multiple addresses from the same device.
 /// </summary>
-public class AirPodsDiscoveryService : IDisposable
+public class AirPodsDiscoveryService : IAirPodsDiscoveryService
 {
     private readonly IAdvertisementWatcher _watcher;
     private readonly Dictionary<ulong, AirPodsDeviceInfo> _discoveredDevices;
@@ -17,20 +17,10 @@ public class AirPodsDiscoveryService : IDisposable
     public event EventHandler<AirPodsDeviceInfo>? DeviceDiscovered;
     public event EventHandler<AirPodsDeviceInfo>? DeviceUpdated;
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="AirPodsDiscoveryService"/> class using a default <see cref="AdvertisementWatcher"/>.
-    /// </summary>
     public AirPodsDiscoveryService() : this(new AdvertisementWatcher())
     {
     }
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="AirPodsDiscoveryService"/> class with a specified advertisement watcher.
-    /// </summary>
-    /// <param name="watcher">The <see cref="IAdvertisementWatcher"/> to use for discovering AirPods devices.</param>
-    /// <remarks>
-    /// This constructor is primarily intended for testing purposes, allowing injection of a mock or custom advertisement watcher.
-    /// </remarks>  
     public AirPodsDiscoveryService(IAdvertisementWatcher watcher)
     {
         _watcher = watcher ?? throw new ArgumentNullException(nameof(watcher));
