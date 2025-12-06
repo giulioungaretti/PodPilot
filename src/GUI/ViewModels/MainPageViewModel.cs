@@ -1,12 +1,11 @@
 using System;
 using System.Linq;
+using System.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DeviceCommunication.Models;
 using DeviceCommunication.Services;
-using GUI.Services;
 using System.Collections.ObjectModel;
-using Microsoft.UI.Dispatching;
 
 namespace GUI.ViewModels;
 
@@ -16,14 +15,7 @@ namespace GUI.ViewModels;
 public partial class MainPageViewModel : ObservableObject, IDisposable
 {
     private readonly IAirPodsDiscoveryService _discoveryService;
-    private readonly SettingsService _settingsService;
-    private readonly DispatcherQueue _dispatcherQueue;
-
-    [ObservableProperty]
-    private AirPodsDeviceViewModel? _savedDevice;
-
-    [ObservableProperty]
-    private bool _hasSavedDevice;
+    private readonly SynchronizationContext? _syncContext;
 
     [ObservableProperty]
     private bool _isScanning;
@@ -33,27 +25,25 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<AirPodsDeviceViewModel> DiscoveredDevices { get; }
 
-    public MainPageViewModel(IAirPodsDiscoveryService discoveryService, SettingsService settingsService, DispatcherQueue dispatcherQueue)
+    public MainPageViewModel(IAirPodsDiscoveryService discoveryService)
     {
         _discoveryService = discoveryService;
-        _settingsService = settingsService;
-        _dispatcherQueue = dispatcherQueue;
+        _syncContext = SynchronizationContext.Current;
         DiscoveredDevices = new ObservableCollection<AirPodsDeviceViewModel>();
+
+        DiscoveredDevices.CollectionChanged += (s, e) =>
+        {
+            HasDiscoveredDevices = DiscoveredDevices.Count > 0;
+        };
 
         _discoveryService.DeviceDiscovered += OnDeviceDiscovered;
         _discoveryService.DeviceUpdated += OnDeviceUpdated;
+        _discoveryService.DeviceRemoved += OnDeviceRemoved;
     }
 
     public void Initialize()
     {
-        LoadSavedDevice();
         StartScanning();
-    }
-
-    private void LoadSavedDevice()
-    {
-        var savedAddress = _settingsService.GetSavedDeviceAddress();
-        HasSavedDevice = savedAddress.HasValue;
     }
 
     [RelayCommand]
@@ -70,74 +60,94 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
         _discoveryService.StopScanning();
     }
 
-    [RelayCommand]
-    private void SaveDevice(AirPodsDeviceViewModel device)
-    {
-        _settingsService.SaveDeviceAddress(device.Address);
-        device.IsSaved = true;
-        SavedDevice = device;
-        HasSavedDevice = true;
-    }
-
-    [RelayCommand]
-    private void ForgetDevice()
-    {
-        _settingsService.ClearSavedDevice();
-        if (SavedDevice != null)
-            SavedDevice.IsSaved = false;
-        SavedDevice = null;
-        HasSavedDevice = false;
-    }
-
     private void OnDeviceDiscovered(object? sender, AirPodsDeviceInfo device)
     {
-        // Marshal to UI thread to ensure thread-safe collection modification
-        _dispatcherQueue.TryEnqueue(() =>
+        if (_syncContext == null)
         {
-            // Check if this is the saved device
-            var savedAddress = _settingsService.GetSavedDeviceAddress();
-            var deviceViewModel = new AirPodsDeviceViewModel(device);
-            
-            if (savedAddress.HasValue && device.Address == savedAddress.Value)
-            {
-                deviceViewModel.IsSaved = true;
-                SavedDevice = deviceViewModel;
-                HasSavedDevice = true;
-            }
+            UpdateDeviceDiscovered(device);
+        }
+        else
+        {
+            _syncContext.Post(_ => UpdateDeviceDiscovered(device), null);
+        }
+    }
 
-            DiscoveredDevices.Add(deviceViewModel);
-            HasDiscoveredDevices = DiscoveredDevices.Count > 0;
-        });
+    private void UpdateDeviceDiscovered(AirPodsDeviceInfo device)
+    {
+        var deviceViewModel = new AirPodsDeviceViewModel(device);
+        
+        // Insert in sorted order by signal strength (strongest first)
+        int index = 0;
+        while (index < DiscoveredDevices.Count && 
+               DiscoveredDevices[index].SignalStrength > deviceViewModel.SignalStrength)
+        {
+            index++;
+        }
+        DiscoveredDevices.Insert(index, deviceViewModel);
     }
 
     private void OnDeviceUpdated(object? sender, AirPodsDeviceInfo device)
     {
-        // Marshal to UI thread to ensure thread-safe collection modification
-        _dispatcherQueue.TryEnqueue(() =>
+        if (_syncContext == null)
         {
-            // Update saved device if it matches
-            if (SavedDevice?.Address == device.Address)
-            {
-                SavedDevice.UpdateFrom(device);
-                if (!SavedDevice.IsSaved)
-                {
-                    SavedDevice.IsSaved = true;
-                }
-            }
+            UpdateDevice(device);
+        }
+        else
+        {
+            _syncContext.Post(_ => UpdateDevice(device), null);
+        }
+    }
 
-            // Update in discovered list - find existing and update in-place
-            var existing = DiscoveredDevices.FirstOrDefault(d => d.Address == device.Address);
-            if (existing != null)
+    private void UpdateDevice(AirPodsDeviceInfo device)
+    {
+        var existing = DiscoveredDevices.FirstOrDefault(d => d.Address == device.Address);
+        if (existing != null)
+        {
+            int oldIndex = DiscoveredDevices.IndexOf(existing);
+            existing.UpdateFrom(device);
+            
+            // Re-sort if signal strength changed significantly
+            int newIndex = 0;
+            while (newIndex < DiscoveredDevices.Count && 
+                   newIndex != oldIndex &&
+                   DiscoveredDevices[newIndex].SignalStrength > existing.SignalStrength)
             {
-                existing.UpdateFrom(device);
+                newIndex++;
             }
-        });
+            
+            if (newIndex != oldIndex && newIndex != oldIndex + 1)
+            {
+                DiscoveredDevices.Move(oldIndex, newIndex > oldIndex ? newIndex - 1 : newIndex);
+            }
+        }
+    }
+
+    private void OnDeviceRemoved(object? sender, AirPodsDeviceInfo device)
+    {
+        if (_syncContext == null)
+        {
+            RemoveDevice(device);
+        }
+        else
+        {
+            _syncContext.Post(_ => RemoveDevice(device), null);
+        }
+    }
+
+    private void RemoveDevice(AirPodsDeviceInfo device)
+    {
+        var existing = DiscoveredDevices.FirstOrDefault(d => d.Address == device.Address);
+        if (existing != null)
+        {
+            DiscoveredDevices.Remove(existing);
+        }
     }
 
     public void Dispose()
     {
         _discoveryService.DeviceDiscovered -= OnDeviceDiscovered;
         _discoveryService.DeviceUpdated -= OnDeviceUpdated;
+        _discoveryService.DeviceRemoved -= OnDeviceRemoved;
         _discoveryService.Dispose();
     }
 }

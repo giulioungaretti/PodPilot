@@ -19,7 +19,8 @@
                        Text="{x:Bind Icon, Mode=OneWay}"
                        FontSize="72"
                        HorizontalAlignment="Center"
-                       Opacity="0.6"/>
+                       Opacity="0.6"
+                       FontFamily="Segoe UI Emoji"/>
             
             <!-- Title -->
             <TextBlock x:Name="TitleBlock"

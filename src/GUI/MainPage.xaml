@@ -37,49 +37,14 @@
                                FontSize="14" />
                 </StackPanel>
 
-                <!-- Saved Device Section -->
-                <StackPanel Spacing="16">
-                    <TextBlock Text="💾 Saved Device" 
-                               FontSize="20" 
-                               FontWeight="SemiBold" />
-                    
-                    <!-- Saved Device Card -->
-                    <controls:AirPodsCard Device="{x:Bind ViewModel.SavedDevice, Mode=OneWay}" 
-                                          ShowActions="True"
-                                          ForgetCommand="{x:Bind ViewModel.ForgetDeviceCommand, Mode=OneWay}"
-                                          Visibility="{x:Bind ViewModel.HasSavedDevice, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                    
-                    <!-- Empty State -->
-                    <Border CornerRadius="12"
-                            Padding="40,32"
-                            BorderThickness="1"
-                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                            Visibility="{x:Bind ViewModel.HasSavedDevice, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}">
-                        <StackPanel Spacing="12" HorizontalAlignment="Center">
-                            <TextBlock Text="📱"
-                                       FontSize="48"
-                                       HorizontalAlignment="Center"
-                                       Opacity="0.5"/>
-                            <TextBlock Text="No saved device"
-                                       FontSize="16"
-                                       FontWeight="SemiBold"
-                                       HorizontalAlignment="Center"/>
-                            <TextBlock Text="Save a device from the discovered list below"
-                                       FontSize="13"
-                                       HorizontalAlignment="Center"
-                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
-
                 <!-- Discovered Devices Section -->
                 <StackPanel Spacing="16">
                     <Grid>
-                        <TextBlock Text="📡 Discovered Devices" 
+                        <TextBlock Text="📡 Nearby Devices" 
                                    FontSize="20" 
                                    FontWeight="SemiBold"
-                                   VerticalAlignment="Center" />
+                                   VerticalAlignment="Center"
+                                   FontFamily="Segoe UI Emoji" />
                         
                         <StackPanel Orientation="Horizontal" 
                                     Spacing="12" 
@@ -99,8 +64,6 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="viewModels:AirPodsDeviceViewModel">
                                 <controls:AirPodsCard Device="{x:Bind Mode=OneWay}" 
-                                                      ShowActions="True"
-                                                      SaveCommand="{Binding ElementName=PageRoot, Path=ViewModel.SaveDeviceCommand}"
                                                       Margin="0,0,0,16"/>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
@@ -112,9 +75,9 @@
                     </ItemsControl>
                     
                     <!-- Empty State -->
-                    <controls:EmptyState Icon="📱" 
+                    <controls:EmptyState Icon="🎧" 
                                          Title="No devices found"
-                                         Message="Open your AirPods case to discover devices nearby"
+                                         Message="Open your AirPods case nearby to discover devices"
                                          Visibility="{x:Bind ViewModel.HasDiscoveredDevices, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
                 </StackPanel>
 
@@ -125,7 +88,7 @@
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                         BorderThickness="1">
                     <StackPanel Spacing="8">
-                        <TextBlock FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}">
+                        <TextBlock FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontFamily="Segoe UI Emoji">
                             <Run Text="💡" />
                             <Run Text="Tip: Your AirPods don't need to be paired to view their status." />
                         </TextBlock>

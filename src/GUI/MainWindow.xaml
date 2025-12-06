@@ -10,7 +10,7 @@
     Title="AirPods Monitor">
 
     <Window.SystemBackdrop>
-        <MicaBackdrop />
+        <DesktopAcrylicBackdrop />
     </Window.SystemBackdrop>
 
     <Frame x:Name="RootFrame"/>

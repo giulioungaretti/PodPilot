@@ -12,10 +12,13 @@ public class AirPodsDiscoveryService : IAirPodsDiscoveryService
 {
     private readonly IAdvertisementWatcher _watcher;
     private readonly Dictionary<ulong, AirPodsDeviceInfo> _discoveredDevices;
+    private readonly TimeSpan _deviceTimeout = TimeSpan.FromSeconds(15);
+    private readonly Timer _cleanupTimer;
     private bool _disposed;
 
     public event EventHandler<AirPodsDeviceInfo>? DeviceDiscovered;
     public event EventHandler<AirPodsDeviceInfo>? DeviceUpdated;
+    public event EventHandler<AirPodsDeviceInfo>? DeviceRemoved;
 
     public AirPodsDiscoveryService() : this(new AdvertisementWatcher())
     {
@@ -26,6 +29,7 @@ public class AirPodsDiscoveryService : IAirPodsDiscoveryService
         _watcher = watcher ?? throw new ArgumentNullException(nameof(watcher));
         _discoveredDevices = new Dictionary<ulong, AirPodsDeviceInfo>();
         _watcher.AdvertisementReceived += OnAdvertisementReceived;
+        _cleanupTimer = new Timer(CleanupExpiredDevices, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
     }
 
     public void StartScanning()
@@ -41,6 +45,21 @@ public class AirPodsDiscoveryService : IAirPodsDiscoveryService
     public IReadOnlyList<AirPodsDeviceInfo> GetDiscoveredDevices()
     {
         return _discoveredDevices.Values.ToList();
+    }
+
+    private void CleanupExpiredDevices(object? state)
+    {
+        var now = DateTime.Now;
+        var expiredDevices = _discoveredDevices
+            .Where(kvp => now - kvp.Value.LastSeen > _deviceTimeout)
+            .Select(kvp => kvp.Value)
+            .ToList();
+
+        foreach (var device in expiredDevices)
+        {
+            _discoveredDevices.Remove(device.Address);
+            DeviceRemoved?.Invoke(this, device);
+        }
     }
 
     private void OnAdvertisementReceived(object? sender, AdvertisementReceivedData data)
@@ -74,7 +93,7 @@ public class AirPodsDiscoveryService : IAirPodsDiscoveryService
             IsLidOpen = airPods.IsLidOpened(),
             SignalStrength = data.Rssi,
             LastSeen = DateTime.Now,
-            IsConnected = true
+            IsConnected = false  // BLE advertisement presence doesn't indicate Bluetooth connection
         };
 
         bool isNew = !_discoveredDevices.ContainsKey(data.Address);
@@ -107,6 +126,7 @@ public class AirPodsDiscoveryService : IAirPodsDiscoveryService
         if (_disposed)
             return;
 
+        _cleanupTimer.Dispose();
         _watcher.Stop();
         _watcher.Dispose();
         _discoveredDevices.Clear();

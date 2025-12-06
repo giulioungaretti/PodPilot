@@ -54,9 +54,6 @@ public partial class AirPodsDeviceViewModel : ObservableObject
     [ObservableProperty]
     private DateTime _lastSeen;
 
-    [ObservableProperty]
-    private bool _isSaved;
-
     public AirPodsDeviceViewModel(AirPodsDeviceInfo deviceInfo)
     {
         Address = deviceInfo.Address;
@@ -84,7 +81,6 @@ public partial class AirPodsDeviceViewModel : ObservableObject
         IsConnected = deviceInfo.IsConnected;
         SignalStrength = deviceInfo.SignalStrength;
         LastSeen = deviceInfo.LastSeen;
-        IsSaved = deviceInfo.IsSaved;
     }
 
     /// <summary>
@@ -108,8 +104,7 @@ public partial class AirPodsDeviceViewModel : ObservableObject
             IsLidOpen = IsLidOpen,
             IsConnected = IsConnected,
             SignalStrength = SignalStrength,
-            LastSeen = LastSeen,
-            IsSaved = IsSaved
+            LastSeen = LastSeen
         };
     }
 }

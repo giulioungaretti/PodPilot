@@ -122,6 +122,36 @@ public class GroupedAirPodsDiscoveryServiceTests
         Assert.Equal(3, _service.GetDiscoveredDevices().Count);
     }
 
+    [Fact]
+    public async Task DeviceTimeout_RaisesDeviceRemovedEvent()
+    {
+        AirPodsDeviceInfo? removedDevice = null;
+        _service.DeviceRemoved += (s, e) => removedDevice = e;
+
+        RaiseAdvertisement(0x123456789ABCUL);
+
+        await Task.Delay(TimeSpan.FromSeconds(20));
+
+        Assert.NotNull(removedDevice);
+        Assert.Equal(0x123456789ABCUL, removedDevice.Address);
+        Assert.Empty(_service.GetDiscoveredDevices());
+    }
+
+    [Fact]
+    public async Task GroupedDevicesTimeout_RemovesEntireGroup()
+    {
+        var removedCount = 0;
+        _service.DeviceRemoved += (s, e) => removedCount++;
+
+        RaiseAdvertisement(0x111111111111UL, leftBattery: 10, rightBattery: 10);
+        RaiseAdvertisement(0x222222222222UL, leftBattery: 10, rightBattery: 10);
+
+        await Task.Delay(TimeSpan.FromSeconds(20));
+
+        Assert.Equal(1, removedCount);
+        Assert.Empty(_service.GetDiscoveredDevices());
+    }
+
     private void RaiseAdvertisement(
         ulong address,
         bool isLeftBroadcasting = true,

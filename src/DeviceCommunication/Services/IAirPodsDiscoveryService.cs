@@ -19,6 +19,11 @@ public interface IAirPodsDiscoveryService : IDisposable
     event EventHandler<AirPodsDeviceInfo>? DeviceUpdated;
 
     /// <summary>
+    /// Occurs when an AirPods device is removed due to timeout (no longer advertising).
+    /// </summary>
+    event EventHandler<AirPodsDeviceInfo>? DeviceRemoved;
+
+    /// <summary>
     /// Starts scanning for AirPods devices via Bluetooth advertisements.
     /// </summary>
     void StartScanning();

@@ -33,7 +33,7 @@
             <!-- Header -->
             <Grid>
                 <StackPanel Orientation="Horizontal" Spacing="12">
-                    <TextBlock Text="??" FontSize="28" VerticalAlignment="Center"/>
+                    <TextBlock Text="🎧" FontSize="28" VerticalAlignment="Center" FontFamily="Segoe UI Emoji"/>
                     <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="{x:Bind Device.Model, Mode=OneWay}" 
                                    FontWeight="SemiBold" 
@@ -44,20 +44,11 @@
                     </StackPanel>
                 </StackPanel>
                 
-                <!-- Connection Status & Signal -->
+                <!-- Signal Strength -->
                 <StackPanel Orientation="Horizontal" 
                             Spacing="8"
                             HorizontalAlignment="Right"
                             VerticalAlignment="Center">
-                    <Border CornerRadius="8" 
-                            Padding="8,4"
-                            Background="{ThemeResource AccentFillColorDefaultBrush}"
-                            Visibility="{x:Bind Device.IsConnected, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                        <TextBlock Text="Connected" 
-                                   FontSize="12" 
-                                   FontWeight="SemiBold"
-                                   Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
-                    </Border>
                     <TextBlock Text="{x:Bind Device.SignalStrength, Mode=OneWay, Converter={StaticResource SignalStrengthConverter}}" 
                                FontSize="12"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
@@ -67,9 +58,10 @@
 
             <!-- Battery Section -->
             <StackPanel Spacing="16">
-                <TextBlock Text="?? Battery" 
+                <TextBlock Text="🔋 Battery" 
                            FontWeight="SemiBold" 
-                           FontSize="16"/>
+                           FontSize="16"
+                           FontFamily="Segoe UI Emoji"/>
                 
                 <!-- Left Battery -->
                 <Grid Visibility="{x:Bind Device.LeftBattery, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}">
@@ -97,10 +89,12 @@
                                    VerticalAlignment="Center"/>
                         <TextBlock Text="{x:Bind Device.IsLeftCharging, Mode=OneWay, Converter={StaticResource ChargingIconConverter}}" 
                                    FontSize="14"
-                                   VerticalAlignment="Center"/>
+                                   VerticalAlignment="Center"
+                                   FontFamily="Segoe UI Emoji"/>
                         <TextBlock Text="{x:Bind Device.IsLeftInEar, Mode=OneWay, Converter={StaticResource InEarIconConverter}}" 
                                    FontSize="14"
-                                   VerticalAlignment="Center"/>
+                                   VerticalAlignment="Center"
+                                   FontFamily="Segoe UI Emoji"/>
                     </StackPanel>
                 </Grid>
 
@@ -130,10 +124,12 @@
                                    VerticalAlignment="Center"/>
                         <TextBlock Text="{x:Bind Device.IsRightCharging, Mode=OneWay, Converter={StaticResource ChargingIconConverter}}" 
                                    FontSize="14"
-                                   VerticalAlignment="Center"/>
+                                   VerticalAlignment="Center"
+                                   FontFamily="Segoe UI Emoji"/>
                         <TextBlock Text="{x:Bind Device.IsRightInEar, Mode=OneWay, Converter={StaticResource InEarIconConverter}}" 
                                    FontSize="14"
-                                   VerticalAlignment="Center"/>
+                                   VerticalAlignment="Center"
+                                   FontFamily="Segoe UI Emoji"/>
                     </StackPanel>
                 </Grid>
 
@@ -163,10 +159,12 @@
                                    VerticalAlignment="Center"/>
                         <TextBlock Text="{x:Bind Device.IsCaseCharging, Mode=OneWay, Converter={StaticResource ChargingIconConverter}}" 
                                    FontSize="14"
-                                   VerticalAlignment="Center"/>
+                                   VerticalAlignment="Center"
+                                   FontFamily="Segoe UI Emoji"/>
                         <TextBlock Text="{x:Bind Device.IsLidOpen, Mode=OneWay, Converter={StaticResource LidStatusConverter}}" 
                                    FontSize="14"
-                                   VerticalAlignment="Center"/>
+                                   VerticalAlignment="Center"
+                                   FontFamily="Segoe UI Emoji"/>
                     </StackPanel>
                 </Grid>
             </StackPanel>
@@ -182,19 +180,6 @@
                 </TextBlock>
             </Border>
 
-            <!-- Actions -->
-            <StackPanel Orientation="Horizontal" 
-                        Spacing="8"
-                        Visibility="{x:Bind ShowActions, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                <Button Content="💾 Save Device" 
-                        Command="{x:Bind SaveCommand, Mode=OneWay}"
-                        CommandParameter="{x:Bind Device, Mode=OneWay}"
-                        Visibility="{x:Bind Device.IsSaved, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
-                <Button Content="🗑️ Forget Device" 
-                        Command="{x:Bind ForgetCommand, Mode=OneWay}"
-                        CommandParameter="{x:Bind Device, Mode=OneWay}"
-                        Visibility="{x:Bind Device.IsSaved, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
-            </StackPanel>
         </StackPanel>
     </Border>
 </UserControl>

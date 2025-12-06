@@ -20,5 +20,4 @@ public class AirPodsDeviceInfo
     public bool IsConnected { get; set; }
     public int SignalStrength { get; set; }
     public DateTime LastSeen { get; set; }
-    public bool IsSaved { get; set; }
 }

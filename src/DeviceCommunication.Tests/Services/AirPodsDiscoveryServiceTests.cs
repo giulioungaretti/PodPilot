@@ -87,6 +87,37 @@ public class AirPodsDiscoveryServiceTests
         _mockWatcher.Received(1).Dispose();
     }
 
+    [Fact]
+    public async Task DeviceTimeout_RaisesDeviceRemovedEvent()
+    {
+        AirPodsDeviceInfo? removedDevice = null;
+        _service.DeviceRemoved += (s, e) => removedDevice = e;
+
+        RaiseAdvertisement(0x123456789ABCUL);
+
+        await Task.Delay(TimeSpan.FromSeconds(20));
+
+        Assert.NotNull(removedDevice);
+        Assert.Equal(0x123456789ABCUL, removedDevice.Address);
+        Assert.Empty(_service.GetDiscoveredDevices());
+    }
+
+    [Fact]
+    public async Task MultipleDevicesTimeout_RemovesOnlyExpiredDevices()
+    {
+        var removedCount = 0;
+        _service.DeviceRemoved += (s, e) => removedCount++;
+
+        RaiseAdvertisement(0x111111111111UL);
+        await Task.Delay(TimeSpan.FromSeconds(10));
+        RaiseAdvertisement(0x222222222222UL);
+        await Task.Delay(TimeSpan.FromSeconds(10));
+
+        Assert.Equal(1, removedCount);
+        Assert.Single(_service.GetDiscoveredDevices());
+        Assert.Equal(0x222222222222UL, _service.GetDiscoveredDevices()[0].Address);
+    }
+
     private void RaiseAdvertisement(
         ulong address,
         bool isLeftBroadcasting = true,

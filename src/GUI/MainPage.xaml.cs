@@ -1,6 +1,5 @@
 using Microsoft.UI.Xaml.Controls;
 using GUI.ViewModels;
-using GUI.Services;
 using DeviceCommunication.Services;
 
 namespace GUI;
@@ -16,12 +15,11 @@ public sealed partial class MainPage : Page
     {
         InitializeComponent();
 
-        // Initialize services
-        var settingsService = new SettingsService();
+        // Initialize service
         var discoveryService = new GroupedAirPodsDiscoveryService();
 
-        // Initialize ViewModel with DispatcherQueue for thread-safe operations
-        ViewModel = new MainPageViewModel(discoveryService, settingsService, DispatcherQueue);
+        // Initialize ViewModel
+        ViewModel = new MainPageViewModel(discoveryService);
 
         // Initialize when page loads
         Loaded += (_, _) => ViewModel.Initialize();
