@@ -52,11 +52,7 @@
                                     Spacing="12" 
                                     HorizontalAlignment="Right"
                                     Visibility="{x:Bind ViewModel.IsScanning, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                            <ProgressRing IsActive="True" Width="20" Height="20" />
-                            <TextBlock Text="Scanning..." 
-                                       VerticalAlignment="Center"
-                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                       FontSize="13" />
+                            <controls:PulsatingDot IsActive="True" Size="20" />
                         </StackPanel>
                     </Grid>
 
