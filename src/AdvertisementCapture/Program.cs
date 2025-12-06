@@ -15,6 +15,7 @@ class Program
     private static string _outputPath = "captured_advertisements.json";
     private static bool _captureAll = false;
     private static bool _appleOnly = true;
+    private static bool _screenOnly = false;
     private static int _captureLimit = 10;
 
     static async Task Main(string[] args)
@@ -48,9 +49,16 @@ class Program
         await tcs.Task;
 
         watcher.Stop();
-        SaveCaptures();
-        
-        Console.WriteLine($"\nCapture complete! Saved {_captures.Count} advertisements to '{_outputPath}'");
+
+        if (_screenOnly)
+        {
+            Console.WriteLine($"\nCapture complete! Collected {_captures.Count} advertisements (screen-only mode; nothing saved to disk).");
+        }
+        else
+        {
+            SaveCaptures();
+            Console.WriteLine($"\nCapture complete! Saved {_captures.Count} advertisements to '{_outputPath}'");
+        }
     }
 
     private static void OnAdvertisementReceived(object? sender, AdvertisementReceivedData data)
@@ -243,6 +251,11 @@ class Program
                         _captureLimit = limit;
                     break;
                 
+                case "-l":
+                case "--no-save":
+                    _screenOnly = true;
+                    break;
+                
                 case "-h":
                 case "--help":
                     ShowHelp();
@@ -258,6 +271,7 @@ class Program
         Console.WriteLine($"  Output file: {_outputPath}");
         Console.WriteLine($"  Capture all packets: {_captureAll}");
         Console.WriteLine($"  Apple devices only: {_appleOnly}");
+        Console.WriteLine($"  Screen-only mode: {_screenOnly}");
         Console.WriteLine($"  Capture limit: {_captureLimit} devices");
     }
 
@@ -272,6 +286,7 @@ Options:
   -o, --output <file>    Output file path (default: captured_advertisements.json)
   -a, --all              Capture all packets (including duplicates)
   --any-device           Capture all BLE devices (not just Apple)
+  -l, --no-save          Print captures to the console without saving files
   -n, --limit <number>   Number of unique devices to capture (default: 10)
   -h, --help             Show this help message
 
@@ -279,6 +294,7 @@ Examples:
   AdvertisementCapture                              # Capture 10 Apple devices
   AdvertisementCapture -o airpods.json -n 5         # Capture 5 devices to custom file
   AdvertisementCapture --any-device -a              # Capture all BLE advertisements
+    AdvertisementCapture -l                          # Print captures without saving files
   AdvertisementCapture --limit 20                   # Capture 20 unique devices
 
 Output:
