@@ -6,6 +6,7 @@
     xmlns:local="using:GUI"
     xmlns:controls="using:GUI.Controls"
     xmlns:models="using:DeviceCommunication.Models"
+    xmlns:viewModels="using:GUI.ViewModels"
     xmlns:converters="using:GUI.Converters"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -96,7 +97,7 @@
                     <ItemsControl ItemsSource="{x:Bind ViewModel.DiscoveredDevices, Mode=OneWay}"
                                   Visibility="{x:Bind ViewModel.HasDiscoveredDevices, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                         <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="models:AirPodsDeviceInfo">
+                            <DataTemplate x:DataType="viewModels:AirPodsDeviceViewModel">
                                 <controls:AirPodsCard Device="{x:Bind Mode=OneWay}" 
                                                       ShowActions="True"
                                                       SaveCommand="{Binding ElementName=PageRoot, Path=ViewModel.SaveDeviceCommand}"

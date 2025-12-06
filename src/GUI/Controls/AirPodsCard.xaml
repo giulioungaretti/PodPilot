@@ -53,7 +53,7 @@
                             Padding="8,4"
                             Background="{ThemeResource AccentFillColorDefaultBrush}"
                             Visibility="{x:Bind Device.IsConnected, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                        <TextBlock Text="Connected ?" 
+                        <TextBlock Text="Connected" 
                                    FontSize="12" 
                                    FontWeight="SemiBold"
                                    Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>

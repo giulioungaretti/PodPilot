@@ -20,7 +20,7 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
     private readonly DispatcherQueue _dispatcherQueue;
 
     [ObservableProperty]
-    private AirPodsDeviceInfo? _savedDevice;
+    private AirPodsDeviceViewModel? _savedDevice;
 
     [ObservableProperty]
     private bool _hasSavedDevice;
@@ -31,14 +31,14 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _hasDiscoveredDevices;
 
-    public ObservableCollection<AirPodsDeviceInfo> DiscoveredDevices { get; }
+    public ObservableCollection<AirPodsDeviceViewModel> DiscoveredDevices { get; }
 
     public MainPageViewModel(IAirPodsDiscoveryService discoveryService, SettingsService settingsService, DispatcherQueue dispatcherQueue)
     {
         _discoveryService = discoveryService;
         _settingsService = settingsService;
         _dispatcherQueue = dispatcherQueue;
-        DiscoveredDevices = new ObservableCollection<AirPodsDeviceInfo>();
+        DiscoveredDevices = new ObservableCollection<AirPodsDeviceViewModel>();
 
         _discoveryService.DeviceDiscovered += OnDeviceDiscovered;
         _discoveryService.DeviceUpdated += OnDeviceUpdated;
@@ -71,7 +71,7 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private void SaveDevice(AirPodsDeviceInfo device)
+    private void SaveDevice(AirPodsDeviceViewModel device)
     {
         _settingsService.SaveDeviceAddress(device.Address);
         device.IsSaved = true;
@@ -96,14 +96,16 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
         {
             // Check if this is the saved device
             var savedAddress = _settingsService.GetSavedDeviceAddress();
+            var deviceViewModel = new AirPodsDeviceViewModel(device);
+            
             if (savedAddress.HasValue && device.Address == savedAddress.Value)
             {
-                device.IsSaved = true;
-                SavedDevice = device;
+                deviceViewModel.IsSaved = true;
+                SavedDevice = deviceViewModel;
                 HasSavedDevice = true;
             }
 
-            DiscoveredDevices.Add(device);
+            DiscoveredDevices.Add(deviceViewModel);
             HasDiscoveredDevices = DiscoveredDevices.Count > 0;
         });
     }
@@ -116,16 +118,18 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
             // Update saved device if it matches
             if (SavedDevice?.Address == device.Address)
             {
-                device.IsSaved = true;
-                SavedDevice = device;
+                SavedDevice.UpdateFrom(device);
+                if (!SavedDevice.IsSaved)
+                {
+                    SavedDevice.IsSaved = true;
+                }
             }
 
-            // Update in discovered list
+            // Update in discovered list - find existing and update in-place
             var existing = DiscoveredDevices.FirstOrDefault(d => d.Address == device.Address);
             if (existing != null)
             {
-                var index = DiscoveredDevices.IndexOf(existing);
-                DiscoveredDevices[index] = device;
+                existing.UpdateFrom(device);
             }
         });
     }

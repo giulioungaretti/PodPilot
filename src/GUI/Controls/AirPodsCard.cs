@@ -1,7 +1,7 @@
 using System.Windows.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using DeviceCommunication.Models;
+using GUI.ViewModels;
 
 namespace GUI.Controls;
 
@@ -13,7 +13,7 @@ public sealed partial class AirPodsCard : UserControl
     public static readonly DependencyProperty DeviceProperty =
         DependencyProperty.Register(
             nameof(Device),
-            typeof(AirPodsDeviceInfo),
+            typeof(AirPodsDeviceViewModel),
             typeof(AirPodsCard),
             new PropertyMetadata(null));
 
@@ -38,9 +38,9 @@ public sealed partial class AirPodsCard : UserControl
             typeof(AirPodsCard),
             new PropertyMetadata(null));
 
-    public AirPodsDeviceInfo? Device
+    public AirPodsDeviceViewModel? Device
     {
-        get => (AirPodsDeviceInfo?)GetValue(DeviceProperty);
+        get => (AirPodsDeviceViewModel?)GetValue(DeviceProperty);
         set => SetValue(DeviceProperty, value);
     }
 
