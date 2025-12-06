@@ -12,16 +12,30 @@ namespace GUI.Services;
 /// </summary>
 public class AirPodsDiscoveryService : IDisposable
 {
-    private readonly AdvertisementWatcher _watcher;
+    private readonly IAdvertisementWatcher _watcher;
     private readonly Dictionary<ulong, AirPodsDeviceInfo> _discoveredDevices;
     private bool _disposed;
 
     public event EventHandler<AirPodsDeviceInfo>? DeviceDiscovered;
     public event EventHandler<AirPodsDeviceInfo>? DeviceUpdated;
 
-    public AirPodsDiscoveryService()
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AirPodsDiscoveryService"/> class.
+    /// </summary>
+    public AirPodsDiscoveryService() : this(new AdvertisementWatcher())
     {
-        _watcher = new AdvertisementWatcher();
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AirPodsDiscoveryService"/> class with a custom watcher.
+    /// </summary>
+    /// <param name="watcher">The advertisement watcher to use for scanning.</param>
+    /// <remarks>
+    /// This constructor is primarily for testing purposes, allowing injection of a mock watcher.
+    /// </remarks>
+    public AirPodsDiscoveryService(IAdvertisementWatcher watcher)
+    {
+        _watcher = watcher ?? throw new ArgumentNullException(nameof(watcher));
         _discoveredDevices = new Dictionary<ulong, AirPodsDeviceInfo>();
         _watcher.AdvertisementReceived += OnAdvertisementReceived;
     }
