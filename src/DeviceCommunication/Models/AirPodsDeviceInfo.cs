@@ -1,6 +1,4 @@
-using System;
-
-namespace GUI.Models;
+namespace DeviceCommunication.Models;
 
 /// <summary>
 /// Represents information about a discovered or saved AirPods device.

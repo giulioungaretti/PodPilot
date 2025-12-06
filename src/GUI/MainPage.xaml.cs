@@ -4,7 +4,8 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using GUI.ViewModels;
 using GUI.Services;
-using GUI.Models;
+using DeviceCommunication.Services;
+using DeviceCommunication.Models;
 using GUI.Controls;
 
 namespace GUI;

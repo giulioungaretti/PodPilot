@@ -61,6 +61,7 @@
       <CopyLocal>false</CopyLocal>
       <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
     </ProjectReference>
+    <ProjectReference Include="..\DeviceCommunication\DeviceCommunication.csproj" />
   </ItemGroup>
 
   <ItemGroup>
