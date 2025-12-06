@@ -297,6 +297,38 @@ public class AirPodsDiscoveryServiceTests
         _mockWatcher.Verify(w => w.Dispose(), Times.Once);
     }
 
+    [TestMethod]
+    public void RealCapturedData_AirPodsPro2_ParsesCorrectly()
+    {
+        // Arrange - Real AirPods Pro 2 data captured from BLE scanner
+        // Source: AdvertisementCapture tool - see samples/RealCapturedData.cs
+        var realData = new byte[]
+        {
+            0x07, 0x19, 0x01, 0x14, 0x20, 0x55, 0xAA, 0xB8, 0x11,
+            0x00, 0x04, 0x1B, 0xE9, 0xD4, 0x3B, 0xA1, 0x34, 0xD2,
+            0x3B, 0x34, 0x24, 0xF0, 0x3D, 0x56, 0xB5, 0xA6, 0x3A
+        };
+
+        var data = new AdvertisementReceivedData
+        {
+            Address = 0xABCDEF123456UL,
+            Rssi = -45,
+            Timestamp = DateTimeOffset.Now,
+            ManufacturerData = new Dictionary<ushort, byte[]>
+            {
+                [AppleConstants.VENDOR_ID] = realData
+            }
+        };
+
+        // Act
+        RaiseAdvertisementReceived(data);
+
+        // Assert
+        var devices = _service!.GetDiscoveredDevices();
+        Assert.AreEqual(1, devices.Count, "Should discover the AirPods Pro 2");
+        Assert.AreEqual("AirPods Pro (2nd generation)", devices[0].Model);
+    }
+
     #endregion
 
     #region Helper Methods
