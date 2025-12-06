@@ -1,0 +1,23 @@
+[
+  {
+    "timestamp": "2024-12-06T15:30:45.1234567",
+    "address": 123456789012,
+    "rssi": -45,
+    "manufacturerData": {
+      "76": "07191401142055AAB811000..."
+    },
+    "appleInfo": {
+      "model": "AirPodsPro2",
+      "broadcastSide": "Left",
+      "leftBattery": 8,
+      "rightBattery": 9,
+      "caseBattery": 10,
+      "isLeftCharging": false,
+      "isRightCharging": false,
+      "isCaseCharging": true,
+      "isLeftInEar": false,
+      "isRightInEar": false,
+      "isLidOpen": true
+    }
+  }
+]
