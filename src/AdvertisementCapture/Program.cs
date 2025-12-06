@@ -64,8 +64,30 @@ class Program
         if (_appleOnly && !isApple)
             return;
 
-        // Skip duplicates unless capturing all packets
-        if (!_captureAll && _seenAddresses.Contains(data.Address))
+        // Parse Apple data to check if it's AirPods
+        bool isAirPods = false;
+        string? modelName = null;
+        string? broadcastSide = null;
+        
+        if (isApple)
+        {
+            var appleData = data.ManufacturerData[AppleConstants.VENDOR_ID];
+            var message = ProximityPairingMessage.FromManufacturerData(appleData);
+            if (message.HasValue)
+            {
+                var model = message.Value.GetModel();
+                if (model != AppleDeviceModel.Unknown)
+                {
+                    isAirPods = true;
+                    modelName = model.ToString();
+                    broadcastSide = message.Value.GetBroadcastSide().ToString();
+                }
+            }
+        }
+
+        // For AirPods in --all mode, always capture (to see both pods)
+        // For non-AirPods, skip duplicates
+        if (!_captureAll && !isAirPods && _seenAddresses.Contains(data.Address))
             return;
 
         _seenAddresses.Add(data.Address);
@@ -112,8 +134,9 @@ class Program
 
         _captures.Add(capture);
 
-        // Display capture
-        Console.WriteLine($"[{_captures.Count}] Captured: {data.Address:X12} (RSSI: {data.Rssi} dBm)");
+        // Display capture with special highlighting for AirPods
+        var marker = isAirPods ? "??" : "??";
+        Console.WriteLine($"{marker} [{_captures.Count}] Captured: {data.Address:X12} (RSSI: {data.Rssi} dBm)");
         
         if (capture.AppleInfo != null)
         {

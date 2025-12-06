@@ -36,9 +36,10 @@ public class AirPodsDiscoveryServiceTests
     #region Device Deduplication Tests
 
     [TestMethod]
-    public void DeviceDiscoveredOnce_WhenBothPodsAdvertise_ShowsSingleDevice()
+    public void DeviceDiscoveredOnce_WhenBothPodsAdvertise_WithSameAddress_ShowsSingleDevice()
     {
-        // Arrange
+        // Arrange - IDEAL scenario where both pods use the same address
+        // NOTE: In practice, AirPods may use different addresses for left/right pods
         var deviceAddress = 0x123456789ABCUL;
         var discoveredCount = 0;
         var updatedCount = 0;
@@ -58,6 +59,33 @@ public class AirPodsDiscoveryServiceTests
         Assert.AreEqual(1, discoveredCount, "DeviceDiscovered should fire only once");
         Assert.AreEqual(1, updatedCount, "DeviceUpdated should fire once for the second advertisement");
         Assert.AreEqual(1, _service.GetDiscoveredDevices().Count, "Should have exactly one device");
+    }
+
+    [TestMethod]
+    public void DeviceDiscoveredTwice_WhenBothPodsAdvertise_WithDifferentAddresses_ShowsTwoDevices()
+    {
+        // Arrange - REAL-WORLD scenario: AirPods left and right pods broadcast with different addresses
+        // This is what's actually happening in your GUI!
+        var leftPodAddress = 0x111111111111UL;
+        var rightPodAddress = 0x222222222222UL;
+        var discoveredCount = 0;
+
+        _service!.DeviceDiscovered += (s, e) => discoveredCount++;
+
+        // Act - Left pod advertising with its own address
+        var leftPodData = CreateAirPodsAdvertisement(leftPodAddress, isLeftBroadcasting: true);
+        RaiseAdvertisementReceived(leftPodData);
+
+        // Act - Right pod advertising with a DIFFERENT address
+        var rightPodData = CreateAirPodsAdvertisement(rightPodAddress, isLeftBroadcasting: false);
+        RaiseAdvertisementReceived(rightPodData);
+
+        // Assert - Current behavior: Two devices are discovered
+        Assert.AreEqual(2, discoveredCount, "Both pods trigger DeviceDiscovered (CURRENT ISSUE)");
+        Assert.AreEqual(2, _service.GetDiscoveredDevices().Count, "Shows two devices (SHOULD BE ONE)");
+
+        // TODO: Fix AirPodsDiscoveryService to deduplicate by model + proximity
+        // instead of just by Bluetooth address
     }
 
     [TestMethod]
