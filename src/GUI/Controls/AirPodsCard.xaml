@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="GUI.Controls.AirPodsCard"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:models="using:GUI.Models"
+    xmlns:converters="using:GUI.Converters"
+    mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
+        <converters:TimeAgoConverter x:Key="TimeAgoConverter"/>
+        <converters:BatteryPercentageConverter x:Key="BatteryPercentageConverter"/>
+        <converters:SignalStrengthConverter x:Key="SignalStrengthConverter"/>
+        <converters:NullableBatteryToDoubleConverter x:Key="BatteryToDoubleConverter"/>
+        <converters:ChargingIconConverter x:Key="ChargingIconConverter"/>
+        <converters:InEarIconConverter x:Key="InEarIconConverter"/>
+        <converters:LidStatusConverter x:Key="LidStatusConverter"/>
+        <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
+    </UserControl.Resources>
+
+    <Border CornerRadius="12" 
+            Padding="24" 
+            BorderThickness="1"
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+        
+        <StackPanel Spacing="20">
+            
+            <!-- Header -->
+            <Grid>
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <TextBlock Text="??" FontSize="28" VerticalAlignment="Center"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="{x:Bind Device.Model, Mode=OneWay}" 
+                                   FontWeight="SemiBold" 
+                                   FontSize="20"/>
+                        <TextBlock Text="{x:Bind Device.DeviceName, Mode=OneWay}" 
+                                   FontSize="13"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                </StackPanel>
+                
+                <!-- Connection Status & Signal -->
+                <StackPanel Orientation="Horizontal" 
+                            Spacing="8"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center">
+                    <Border CornerRadius="8" 
+                            Padding="8,4"
+                            Background="{ThemeResource AccentFillColorDefaultBrush}"
+                            Visibility="{x:Bind Device.IsConnected, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <TextBlock Text="Connected ?" 
+                                   FontSize="12" 
+                                   FontWeight="SemiBold"
+                                   Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+                    </Border>
+                    <TextBlock Text="{x:Bind Device.SignalStrength, Mode=OneWay, Converter={StaticResource SignalStrengthConverter}}" 
+                               FontSize="12"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Battery Section -->
+            <StackPanel Spacing="16">
+                <TextBlock Text="?? Battery" 
+                           FontWeight="SemiBold" 
+                           FontSize="16"/>
+                
+                <!-- Left Battery -->
+                <Grid Visibility="{x:Bind Device.LeftBattery, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="80"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="Left" 
+                               VerticalAlignment="Center"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    
+                    <ProgressBar Grid.Column="1" 
+                                 Value="{x:Bind Device.LeftBattery, Mode=OneWay, Converter={StaticResource BatteryToDoubleConverter}}"
+                                 Maximum="100"
+                                 VerticalAlignment="Center"
+                                 Margin="8,0"/>
+                    
+                    <StackPanel Grid.Column="2" 
+                                Orientation="Horizontal" 
+                                Spacing="6">
+                        <TextBlock Text="{x:Bind Device.LeftBattery, Mode=OneWay, Converter={StaticResource BatteryPercentageConverter}}" 
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock Text="{x:Bind Device.IsLeftCharging, Mode=OneWay, Converter={StaticResource ChargingIconConverter}}" 
+                                   FontSize="14"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock Text="{x:Bind Device.IsLeftInEar, Mode=OneWay, Converter={StaticResource InEarIconConverter}}" 
+                                   FontSize="14"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Right Battery -->
+                <Grid Visibility="{x:Bind Device.RightBattery, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="80"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="Right" 
+                               VerticalAlignment="Center"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    
+                    <ProgressBar Grid.Column="1" 
+                                 Value="{x:Bind Device.RightBattery, Mode=OneWay, Converter={StaticResource BatteryToDoubleConverter}}"
+                                 Maximum="100"
+                                 VerticalAlignment="Center"
+                                 Margin="8,0"/>
+                    
+                    <StackPanel Grid.Column="2" 
+                                Orientation="Horizontal" 
+                                Spacing="6">
+                        <TextBlock Text="{x:Bind Device.RightBattery, Mode=OneWay, Converter={StaticResource BatteryPercentageConverter}}" 
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock Text="{x:Bind Device.IsRightCharging, Mode=OneWay, Converter={StaticResource ChargingIconConverter}}" 
+                                   FontSize="14"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock Text="{x:Bind Device.IsRightInEar, Mode=OneWay, Converter={StaticResource InEarIconConverter}}" 
+                                   FontSize="14"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Case Battery -->
+                <Grid Visibility="{x:Bind Device.CaseBattery, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="80"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="Case" 
+                               VerticalAlignment="Center"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    
+                    <ProgressBar Grid.Column="1" 
+                                 Value="{x:Bind Device.CaseBattery, Mode=OneWay, Converter={StaticResource BatteryToDoubleConverter}}"
+                                 Maximum="100"
+                                 VerticalAlignment="Center"
+                                 Margin="8,0"/>
+                    
+                    <StackPanel Grid.Column="2" 
+                                Orientation="Horizontal" 
+                                Spacing="6">
+                        <TextBlock Text="{x:Bind Device.CaseBattery, Mode=OneWay, Converter={StaticResource BatteryPercentageConverter}}" 
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock Text="{x:Bind Device.IsCaseCharging, Mode=OneWay, Converter={StaticResource ChargingIconConverter}}" 
+                                   FontSize="14"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock Text="{x:Bind Device.IsLidOpen, Mode=OneWay, Converter={StaticResource LidStatusConverter}}" 
+                                   FontSize="14"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+
+            <!-- Status Info -->
+            <Border CornerRadius="8" 
+                    Padding="12"
+                    Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                <TextBlock FontSize="12"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}">
+                    <Run Text="Last seen: "/>
+                    <Run Text="{x:Bind Device.LastSeen, Mode=OneWay, Converter={StaticResource TimeAgoConverter}}"/>
+                </TextBlock>
+            </Border>
+
+            <!-- Actions -->
+            <StackPanel Orientation="Horizontal" 
+                        Spacing="8"
+                        Visibility="{x:Bind ShowActions, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                <Button Content="?? Save Device" 
+                        Click="OnSaveButtonClick"
+                        Visibility="{x:Bind Device.IsSaved, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+                <Button Content="??? Forget Device" 
+                        Click="OnForgetButtonClick"
+                        Visibility="{x:Bind Device.IsSaved, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</UserControl>

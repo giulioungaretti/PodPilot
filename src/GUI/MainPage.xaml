@@ -6,7 +6,77 @@
     xmlns:local="using:GUI"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    mc:Ignorable="d"
-    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    mc:Ignorable="d">
 
+    <Grid>
+        <Grid.Background>
+            <AcrylicBrush TintColor="{ThemeResource SolidBackgroundFillColorBase}"
+                          TintOpacity="0.5"
+                          FallbackColor="{ThemeResource SolidBackgroundFillColorBase}" />
+        </Grid.Background>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel x:Name="RootStackPanel" Padding="40,20,40,40" Spacing="32" MaxWidth="1200">
+                
+                <!-- Header -->
+                <StackPanel Spacing="8">
+                    <TextBlock Text="PodPilot" 
+                               FontSize="32" 
+                               FontWeight="Bold" />
+                    <TextBlock Text="Monitor your AirPods battery and status" 
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               FontSize="14" />
+                </StackPanel>
+
+                <!-- Saved Device Section -->
+                <StackPanel Spacing="16">
+                    <TextBlock Text="💾 Saved Device" 
+                               FontSize="20" 
+                               FontWeight="SemiBold" />
+                    
+                    <!-- Content will be added programmatically -->
+                    <Border x:Name="SavedDeviceContainer" />
+                </StackPanel>
+
+                <!-- Discovered Devices Section -->
+                <StackPanel Spacing="16">
+                    <Grid>
+                        <TextBlock Text="📡 Discovered Devices" 
+                                   FontSize="20" 
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center" />
+                        
+                        <StackPanel x:Name="ScanningIndicator" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right" Visibility="Collapsed">
+                            <ProgressRing IsActive="True" Width="20" Height="20" />
+                            <TextBlock Text="Scanning..." 
+                                       VerticalAlignment="Center"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                       FontSize="13" />
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Device List Container -->
+                    <StackPanel x:Name="DiscoveredDevicesContainer" Spacing="16" />
+                </StackPanel>
+
+                <!-- Info Footer -->
+                <Border Background="{ThemeResource LayerFillColorDefaultBrush}"
+                        CornerRadius="8"
+                        Padding="16"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1">
+                    <StackPanel Spacing="8">
+                        <TextBlock FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}">
+                            <Run Text="💡" />
+                            <Run Text="Tip: Your AirPods don't need to be paired to view their status." />
+                        </TextBlock>
+                        <TextBlock FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}">
+                            <Run Text="They just need to be in range and broadcasting." />
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
 </Page>
