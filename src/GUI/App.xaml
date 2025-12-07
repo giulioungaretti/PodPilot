@@ -11,6 +11,18 @@
                 <!-- Other merged dictionaries here -->
             </ResourceDictionary.MergedDictionaries>
             <!-- Other app resources here -->
+            
+            <!-- Pulsating animation for pairing warning icon -->
+            <Storyboard x:Key="PulsatingAnimation">
+                <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                 From="1.0" To="0.3" Duration="0:0:0.8"
+                                 AutoReverse="True"
+                                 RepeatBehavior="Forever">
+                    <DoubleAnimation.EasingFunction>
+                        <SineEase EasingMode="EaseInOut"/>
+                    </DoubleAnimation.EasingFunction>
+                </DoubleAnimation>
+            </Storyboard>
         </ResourceDictionary>
     </Application.Resources>
 </Application>
