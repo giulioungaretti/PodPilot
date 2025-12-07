@@ -12,7 +12,7 @@
 
   <ItemGroup>
     <PackageReference Include="System.Reactive" Version="6.0.1" />
-    <PackageReference Include="InTheHand.Net.Bluetooth" Version="4.1.47" />
+    <PackageReference Include="InTheHand.Net.Bluetooth" Version="4.2.2" />
   </ItemGroup>
 
 </Project>
