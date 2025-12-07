@@ -1,6 +1,6 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml.Controls;
 using GUI.ViewModels;
-using DeviceCommunication.Services;
 
 namespace GUI;
 
@@ -15,15 +15,8 @@ public sealed partial class MainPage : Page
     {
         InitializeComponent();
 
-        // Initialize services with simplified Product ID-based discovery
-        var discoveryService = new SimpleAirPodsDiscoveryService();
-        var connectionService = new BluetoothConnectionService();
-
-        // Initialize ViewModel with dependencies
-        ViewModel = new MainPageViewModel(
-            discoveryService, 
-            connectionService,
-            DispatcherQueue);
+        // Resolve ViewModel with all dependencies from DI container
+        ViewModel = App.Current.Services.GetRequiredService<MainPageViewModel>();
 
         // Initialize when page loads
         Loaded += (_, _) => ViewModel.Initialize();

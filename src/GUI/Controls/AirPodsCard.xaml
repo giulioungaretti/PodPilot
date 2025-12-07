@@ -47,19 +47,7 @@
                                        FontWeight="SemiBold" 
                                        FontSize="20"
                                        VerticalAlignment="Center"/>
-                            <!-- Connected Status Dot -->
-                            <Ellipse Width="8" 
-                                     Height="8" 
-                                     Fill="{ThemeResource SystemFillColorSuccessBrush}"
-                                     VerticalAlignment="Center"
-                                     Visibility="{x:Bind Device.IsConnected, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                                     ToolTipService.ToolTip="Connected"/>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="{x:Bind Device.DeviceName, Mode=OneWay}" 
-                                       FontSize="13"
-                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            <!-- Pairing Warning Icon - Pulsating -->
+                            <!-- Pairing Warning Icon - Pulsating (next to device name) -->
                             <HyperlinkButton Command="{x:Bind Device.OpenBluetoothSettingsCommand, Mode=OneWay}"
                                              Padding="0"
                                              MinWidth="0"
@@ -70,12 +58,29 @@
                                              Loaded="PairingWarningButton_Loaded">
                                 <TextBlock x:Name="PairingWarningIcon"
                                            Text="⚠" 
-                                           FontSize="14" 
+                                           FontSize="16" 
                                            FontFamily="Segoe UI Emoji"
                                            Foreground="{ThemeResource SystemFillColorCautionBrush}"
                                            VerticalAlignment="Center"/>
                             </HyperlinkButton>
+                            <!-- Connected Status Dot -->
+                            <Ellipse Width="8" 
+                                     Height="8" 
+                                     Fill="{ThemeResource SystemFillColorSuccessBrush}"
+                                     VerticalAlignment="Center"
+                                     Visibility="{x:Bind Device.IsConnected, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                     ToolTipService.ToolTip="Connected"/>
+                            <!-- Audio Output Indicator -->
+                            <TextBlock Text="🔊" 
+                                       FontSize="16" 
+                                       FontFamily="Segoe UI Emoji"
+                                       VerticalAlignment="Center"
+                                       Visibility="{x:Bind Device.IsDefaultAudioOutput, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                       ToolTipService.ToolTip="Playing audio 🎶"/>
                         </StackPanel>
+                        <TextBlock Text="{x:Bind Device.DeviceName, Mode=OneWay}" 
+                                   FontSize="13"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
                 </StackPanel>
                 
