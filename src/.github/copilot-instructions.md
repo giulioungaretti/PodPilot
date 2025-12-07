@@ -1,0 +1,43 @@
+# GitHub Copilot Custom Instructions
+
+## Commit Workflow
+
+After making code changes, **always**:
+
+1. **Ask for confirmation** before committing:
+   - "Would you like me to commit these changes?"
+
+2. **Show a diff** of the changes:
+   - Use `git diff` or `git diff --staged` to display what will be committed
+   - Summarize the key changes in a readable format
+
+3. **Propose a semantic commit message** following the [Conventional Commits](https://www.conventionalcommits.org/) specification:
+
+   ```
+   <type>(<scope>): <description>
+
+   [optional body]
+
+   [optional footer(s)]
+   ```
+
+   ### Commit Types
+   - `feat`: A new feature
+   - `fix`: A bug fix
+   - `docs`: Documentation only changes
+   - `style`: Changes that do not affect the meaning of the code (white-space, formatting)
+   - `refactor`: A code change that neither fixes a bug nor adds a feature
+   - `perf`: A code change that improves performance
+   - `test`: Adding missing tests or correcting existing tests
+   - `build`: Changes that affect the build system or external dependencies
+   - `ci`: Changes to CI configuration files and scripts
+   - `chore`: Other changes that don't modify src or test files
+
+   ### Examples
+   - `feat(auth): add OAuth2 login support`
+   - `fix(api): handle null response from external service`
+   - `refactor(services): extract caching logic to dedicated service`
+   - `perf(discovery): cache paired device lookups for 30 seconds`
+   - `docs(readme): update installation instructions`
+
+4. **Wait for user approval** before executing the commit command.
