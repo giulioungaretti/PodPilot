@@ -14,6 +14,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{329D07D3-0ADA-4850-BC97-A416753E67A1}"
 	ProjectSection(SolutionItems) = preProject
 		next.md = next.md
+		prev.md = prev.md
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConnectionTestCLI", "ConnectionTestCLI\ConnectionTestCLI.csproj", "{84E1118E-B736-70E1-69D6-E4D4FF7FC896}"

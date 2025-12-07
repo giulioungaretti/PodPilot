@@ -49,9 +49,6 @@ class Program
                 case "5":
                     await Example5_CompleteAirPodsMonitor();
                     break;
-                case "6":
-                    await Example6_ReactiveAirPodsMonitor();
-                    break;
                 case "7":
                     await Example7_BluetoothDiagnostics();
                     break;
@@ -365,119 +362,6 @@ class Program
         var bar = new string('█', percent / 10) + new string('░', 10 - percent / 10);
         var chargingIndicator = charging ? " ⚡ charging" : "";
         Console.WriteLine($"  {label}: [{bar}] {percent}%{chargingIndicator}");
-    }
-
-    /// <summary>
-    /// [LEGACY ARCHITECTURE] example 6: reactive airpods monitor using battery signature grouping
-    /// demonstrates the old complex grouping approach that has been replaced by Product ID-based identification
-    /// </summary>
-    /// <remarks>
-    /// This example is kept for educational purposes to show the evolution from complex
-    /// battery signature grouping to simple Product ID-based identification.
-    /// For production code, use Example 9 approach (Product ID direct lookup).
-    /// </remarks>
-    static async Task Example6_ReactiveAirPodsMonitor()
-    {
-        Console.WriteLine("=== reactive airpods monitor [LEGACY ARCHITECTURE] ===");
-        Console.WriteLine("\n⚠️  This example demonstrates the OLD approach using battery signature grouping.");
-        Console.WriteLine("For new code, see Example 9 which uses Product ID-based identification.\n");
-        Console.WriteLine("\nthis example demonstrates the legacy layered architecture:");
-        Console.WriteLine("  layer 1: IAdvertisementStream - raw BLE advertisements");
-        Console.WriteLine("  layer 2: AirPodsDeviceAggregator - grouping & deduplication");
-        Console.WriteLine("  layer 3: IObservable subscription - reactive updates\n");
-
-        using var advertisementStream = new AdvertisementStream();
-        using var aggregator = new AirPodsDeviceAggregator(advertisementStream);
-
-        var knownDevices = new Dictionary<Guid, DateTime>();
-
-        // Subscribe to device state changes
-        using var subscription = aggregator.DeviceChanges.Subscribe(
-            onNext: change =>
-            {
-                var now = DateTime.Now;
-
-                // Throttle updates (only show update every 5 seconds per device)
-                if (change.ChangeType == DeviceChangeType.Updated)
-                {
-                    if (knownDevices.TryGetValue(change.DeviceId, out var lastSeen))
-                    {
-                        if ((now - lastSeen).TotalSeconds < 5)
-                            return;
-                    }
-                }
-
-                knownDevices[change.DeviceId] = now;
-
-                // Display device state change
-                Console.Clear();
-                Console.WriteLine("=== reactive airpods monitor ===");
-                Console.WriteLine($"last update: {now:HH:mm:ss}");
-                Console.WriteLine($"change type: {change.ChangeType}\n");
-
-                if (change.ChangeType == DeviceChangeType.Removed)
-                {
-                    Console.WriteLine($"device removed: {change.Device.Model}");
-                    Console.WriteLine($"device id: {change.DeviceId}");
-                }
-                else
-                {
-                    var device = change.Device;
-                    Console.WriteLine($"device: {device.Model}");
-                    Console.WriteLine($"device id: {change.DeviceId}");
-                    Console.WriteLine($"address: {device.Address:X12}");
-                    Console.WriteLine($"signal: {device.SignalStrength} dbm\n");
-
-                    // battery section
-                    Console.WriteLine("battery:");
-                    if (device.LeftBattery.HasValue)
-                    {
-                        var leftBatt = (byte)(device.LeftBattery.Value / 10);
-                        DisplayBatteryLine("left  ", leftBatt, device.IsLeftCharging);
-                    }
-                    if (device.RightBattery.HasValue)
-                    {
-                        var rightBatt = (byte)(device.RightBattery.Value / 10);
-                        DisplayBatteryLine("right ", rightBatt, device.IsRightCharging);
-                    }
-                    if (device.CaseBattery.HasValue)
-                    {
-                        var caseBatt = (byte)(device.CaseBattery.Value / 10);
-                        DisplayBatteryLine("case  ", caseBatt, device.IsCaseCharging);
-                    }
-                    Console.WriteLine();
-
-                    // status section
-                    Console.WriteLine("status:");
-                    Console.WriteLine($"  lid: {(device.IsLidOpen ? "open ✓" : "closed")}");
-                    Console.WriteLine($"  left in ear: {(device.IsLeftInEar ? "yes ✓" : "no")}");
-                    Console.WriteLine($"  right in ear: {(device.IsRightInEar ? "yes ✓" : "no")}");
-                    Console.WriteLine();
-                }
-
-                Console.WriteLine($"total devices tracked: {knownDevices.Count}");
-                Console.WriteLine("\npress ctrl+c to stop...");
-            },
-            onError: ex => Console.Error.WriteLine($"error in device stream: {ex}"),
-            onCompleted: () => Console.WriteLine("device stream completed")
-        );
-
-        Console.WriteLine("starting reactive monitor...");
-        Console.WriteLine("open your airpods case nearby.\n");
-
-        aggregator.Start();
-
-        // wait for ctrl+c
-        var tcs = new TaskCompletionSource<bool>();
-        Console.CancelKeyPress += (s, e) =>
-        {
-            e.Cancel = true;
-            tcs.SetResult(true);
-        };
-
-        await tcs.Task;
-
-        Console.WriteLine("\nmonitor stopped.");
     }
 
     /// <summary>

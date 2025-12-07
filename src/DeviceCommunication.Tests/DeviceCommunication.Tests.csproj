@@ -29,6 +29,7 @@
 
   <ItemGroup>
     <Folder Include="Device\" />
+    <Folder Include="Services\" />
   </ItemGroup>
 
 </Project>
