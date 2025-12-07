@@ -13,7 +13,7 @@ namespace GUI.ViewModels;
 /// </summary>
 public partial class AirPodsDeviceViewModel : ObservableObject
 {
-    private readonly BluetoothConnectionService _connectionService;
+    private readonly IBluetoothConnectionService _connectionService;
 
     public ulong Address { get; private set; }
     
@@ -160,7 +160,7 @@ public partial class AirPodsDeviceViewModel : ObservableObject
     /// </summary>
     public bool CanConnectAudio => !string.IsNullOrEmpty(PairedDeviceId) && !IsConnecting && !IsDefaultAudioOutput;
 
-    public AirPodsDeviceViewModel(AirPodsDeviceInfo deviceInfo, BluetoothConnectionService connectionService)
+    public AirPodsDeviceViewModel(AirPodsDeviceInfo deviceInfo, IBluetoothConnectionService connectionService)
     {
         Address = deviceInfo.Address;
         ProductId = deviceInfo.ProductId;

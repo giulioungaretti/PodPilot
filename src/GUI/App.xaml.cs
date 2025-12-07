@@ -16,7 +16,6 @@ public partial class App : Application
 {
     private MainWindow? _mainWindow;
     private TrayIconService? _trayIconService;
-    private BackgroundDeviceMonitoringService? _backgroundMonitoringService;
 
     /// <summary>
     /// Gets the current <see cref="App"/> instance in use.
@@ -44,17 +43,22 @@ public partial class App : Application
     {
         var services = new ServiceCollection();
 
-        // Register DispatcherQueue (must be captured on UI thread)
+        // Infrastructure
         services.AddSingleton(dispatcherQueue);
 
-        // Register services as singletons (shared across the application)
+        // Low-level services (no dependencies on other services)
         services.AddSingleton<IPairedDeviceLookupService, PairedDeviceLookupService>();
-        services.AddSingleton<IAirPodsDiscoveryService, SimpleAirPodsDiscoveryService>();
-        services.AddSingleton<BluetoothConnectionService>();
-        services.AddSingleton<GlobalMediaController>();
-        services.AddSingleton<EarDetectionService>();
+        services.AddSingleton<IGlobalMediaController, GlobalMediaController>();
 
-        // Register ViewModels as transient (new instance each time)
+        // Mid-level services
+        services.AddSingleton<IAirPodsDiscoveryService, SimpleAirPodsDiscoveryService>();
+        services.AddSingleton<IBluetoothConnectionService, BluetoothConnectionService>();
+
+        // High-level services (depend on discovery service)
+        services.AddSingleton<EarDetectionService>();
+        services.AddSingleton<IBackgroundDeviceMonitoringService, BackgroundDeviceMonitoringService>();
+
+        // ViewModels
         services.AddTransient<MainPageViewModel>();
 
         return services.BuildServiceProvider();
@@ -70,18 +74,13 @@ public partial class App : Application
 
         _mainWindow = new MainWindow();
 
-        // Get services from DI container
-        var discoveryService = Services.GetRequiredService<IAirPodsDiscoveryService>();
-
-        // Initialize tray icon service (simplified - just manages window visibility)
+        // Initialize tray icon service (requires MainWindow, so created manually)
         _trayIconService = new TrayIconService(_mainWindow);
 
-        // Initialize background monitoring service with shared discovery service
-        _backgroundMonitoringService = new BackgroundDeviceMonitoringService(
-            DispatcherQueue.GetForCurrentThread(),
-            discoveryService);
-        _backgroundMonitoringService.PairedDeviceDetected += OnPairedDeviceDetected;
-        _backgroundMonitoringService.Start();
+        // Get and start background monitoring service from DI
+        var backgroundMonitoringService = Services.GetRequiredService<IBackgroundDeviceMonitoringService>();
+        backgroundMonitoringService.PairedDeviceDetected += OnPairedDeviceDetected;
+        backgroundMonitoringService.Start();
 
         // Initialize ear detection service for auto-pause/resume
         var earDetectionService = Services.GetRequiredService<EarDetectionService>();
@@ -98,7 +97,7 @@ public partial class App : Application
 
     private void OnPairedDeviceDetected(object? sender, DeviceCommunication.Models.AirPodsDeviceInfo deviceInfo)
     {
-        var connectionService = Services.GetRequiredService<BluetoothConnectionService>();
+        var connectionService = Services.GetRequiredService<IBluetoothConnectionService>();
 
         // Show notification window
         var notificationWindow = new NotificationWindow(deviceInfo, connectionService);

@@ -16,7 +16,7 @@ namespace DeviceCommunication.Services;
 /// Use this service for features like automatic pause when AirPods are removed from ears.
 /// </para>
 /// </remarks>
-public sealed class GlobalMediaController : IDisposable
+public sealed class GlobalMediaController : IGlobalMediaController
 {
     private GlobalSystemMediaTransportControlsSessionManager? _sessionManager;
     private GlobalSystemMediaTransportControlsSession? _currentSession;

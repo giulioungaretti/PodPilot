@@ -39,7 +39,7 @@ public enum ConnectionResult
 /// are already paired via Windows Settings before attempting connection.
 /// </para>
 /// </remarks>
-public sealed class BluetoothConnectionService : IDisposable
+public sealed class BluetoothConnectionService : IBluetoothConnectionService
 {
     private readonly ConcurrentDictionary<string, BluetoothDevice> _connectedDevices = new();
     private readonly Win32BluetoothConnector _win32Connector = new();

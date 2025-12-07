@@ -10,7 +10,7 @@ namespace GUI.Services;
 /// Background service that monitors for paired AirPods devices being advertised.
 /// Tracks device connection state and allows re-notification after disconnect/reconnect cycles.
 /// </summary>
-internal sealed class BackgroundDeviceMonitoringService : IDisposable
+public sealed class BackgroundDeviceMonitoringService : IBackgroundDeviceMonitoringService
 {
     private readonly IAirPodsDiscoveryService _discoveryService;
     private readonly Dictionary<string, DeviceConnectionState> _deviceStates;

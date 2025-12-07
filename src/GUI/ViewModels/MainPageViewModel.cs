@@ -15,7 +15,7 @@ namespace GUI.ViewModels;
 public partial class MainPageViewModel : ObservableObject, IDisposable
 {
     private readonly IAirPodsDiscoveryService _discoveryService;
-    private readonly BluetoothConnectionService _connectionService;
+    private readonly IBluetoothConnectionService _connectionService;
     private readonly DispatcherQueue _dispatcherQueue;
     private readonly DispatcherQueueTimer _cleanupTimer;
 
@@ -29,7 +29,7 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
 
     public MainPageViewModel(
         IAirPodsDiscoveryService discoveryService,
-        BluetoothConnectionService connectionService,
+        IBluetoothConnectionService connectionService,
         DispatcherQueue dispatcherQueue)
     {
         _discoveryService = discoveryService;

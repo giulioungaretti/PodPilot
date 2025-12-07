@@ -18,7 +18,7 @@ namespace DeviceCommunication.Services;
 /// </remarks>
 public sealed class EarDetectionService : IDisposable
 {
-    private readonly GlobalMediaController _mediaController;
+    private readonly IGlobalMediaController _mediaController;
     private readonly IAirPodsDiscoveryService _discoveryService;
     
     /// <summary>
@@ -65,7 +65,7 @@ public sealed class EarDetectionService : IDisposable
     /// </summary>
     /// <param name="mediaController">The media controller for pause/play operations.</param>
     /// <param name="discoveryService">The discovery service to get ear detection updates.</param>
-    public EarDetectionService(GlobalMediaController mediaController, IAirPodsDiscoveryService discoveryService)
+    public EarDetectionService(IGlobalMediaController mediaController, IAirPodsDiscoveryService discoveryService)
     {
         _mediaController = mediaController ?? throw new ArgumentNullException(nameof(mediaController));
         _discoveryService = discoveryService ?? throw new ArgumentNullException(nameof(discoveryService));

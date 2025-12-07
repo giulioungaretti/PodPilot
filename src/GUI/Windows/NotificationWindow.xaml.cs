@@ -17,7 +17,7 @@ public sealed partial class NotificationWindow : WinUIEx.WindowEx
 
     public event EventHandler? OpenMainWindowRequested;
 
-    public NotificationWindow(AirPodsDeviceInfo deviceInfo, BluetoothConnectionService connectionService)
+    public NotificationWindow(AirPodsDeviceInfo deviceInfo, IBluetoothConnectionService connectionService)
     {
         InitializeComponent();
 
