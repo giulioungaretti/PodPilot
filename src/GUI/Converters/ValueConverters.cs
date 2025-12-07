@@ -47,12 +47,19 @@ public class BoolToVisibilityConverter : IValueConverter
     }
 }
 
+/// <summary>
+/// Converts lid open/closed state to an icon using Segoe MDL2 Assets font.
+/// </summary>
 public class LidStatusConverter : IValueConverter
 {
+    // Segoe MDL2 Assets: OpenPane (\uE8A0) for open, ClosePane (\uE89F) for closed
+    private const string OpenGlyph = "\uE8A0";
+    private const string ClosedGlyph = "\uE89F";
+
     public object Convert(object value, Type targetType, object parameter, string language)
     {
         if (value is bool isOpen)
-            return isOpen ? "??" : "??";
+            return isOpen ? OpenGlyph : ClosedGlyph;
         return "";
     }
 
@@ -131,12 +138,18 @@ public class NullableBatteryToDoubleConverter : IValueConverter
     }
 }
 
+/// <summary>
+/// Converts charging state to a battery charging icon using Segoe MDL2 Assets font.
+/// </summary>
 public class ChargingIconConverter : IValueConverter
 {
+    // Segoe MDL2 Assets: Battery Charging (\uEA93) or Lightning Bolt (\uE945)
+    private const string ChargingGlyph = "\uE945";
+
     public object Convert(object value, Type targetType, object parameter, string language)
     {
         if (value is bool isCharging && isCharging)
-            return "?";
+            return ChargingGlyph;
         return string.Empty;
     }
 
@@ -146,12 +159,18 @@ public class ChargingIconConverter : IValueConverter
     }
 }
 
+/// <summary>
+/// Converts in-ear state to a headphone icon using Segoe MDL2 Assets font.
+/// </summary>
 public class InEarIconConverter : IValueConverter
 {
+    // Segoe MDL2 Assets: Headphone (\uE7F6) or Volume (\uE767)
+    private const string InEarGlyph = "\uE7F6";
+
     public object Convert(object value, Type targetType, object parameter, string language)
     {
         if (value is bool inEar && inEar)
-            return "??";
+            return InEarGlyph;
         return string.Empty;
     }
 

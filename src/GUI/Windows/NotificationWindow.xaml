@@ -12,9 +12,7 @@
         <MicaBackdrop Kind="BaseAlt"/>
     </winex:WindowEx.SystemBackdrop>
 
-    <Grid Background="Transparent" Padding="16">
-        <StackPanel Spacing="12">
-            <controls:AirPodsCard x:Name="DeviceCard"/>
-        </StackPanel>
+    <Grid Background="Transparent" Padding="12">
+        <controls:MinimalAirPodsCard x:Name="DeviceCard"/>
     </Grid>
 </winex:WindowEx>

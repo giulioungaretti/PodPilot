@@ -21,9 +21,9 @@ public sealed partial class NotificationWindow : WinUIEx.WindowEx
     {
         InitializeComponent();
 
-        // Configure window size using WindowEx properties
-        Width = 450;
-        Height = 300;
+        // Configure window size - width fixed, height will be set after layout
+        Width = 320;
+        MinHeight = 100;
         
         // Configure window behavior using WindowEx properties
         IsAlwaysOnTop = true;
@@ -43,6 +43,9 @@ public sealed partial class NotificationWindow : WinUIEx.WindowEx
         _deviceViewModel = new AirPodsDeviceViewModel(deviceInfo, connectionService);
         DeviceCard.Device = _deviceViewModel;
 
+        // Size window to content after layout
+        DeviceCard.Loaded += OnDeviceCardLoaded;
+
         // Auto-close after 15 seconds
         var timer = DispatcherQueue.CreateTimer();
         timer.Interval = TimeSpan.FromSeconds(15);
@@ -58,18 +61,23 @@ public sealed partial class NotificationWindow : WinUIEx.WindowEx
     {
         // Unsubscribe - only need to position once
         Activated -= OnFirstActivated;
-        
+
+        MoveToBottomAboveTaskbar();
+    }
+
+    private void MoveToBottomAboveTaskbar()
+    {
         // Position window at center-bottom of screen, just above taskbar
         var displayArea = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary);
         var workArea = displayArea.WorkArea; // WorkArea excludes taskbar area
-        
+
         // Get actual window size in physical pixels (accounts for DPI scaling)
         var windowWidth = AppWindow.Size.Width;
         var windowHeight = AppWindow.Size.Height;
-        
+
         var x = workArea.X + (workArea.Width - windowWidth) / 2; // Center horizontally
         var y = workArea.Y + workArea.Height - windowHeight - 20; // 20px margin above taskbar
-        
+
         this.Move(x, y);
     }
 
@@ -80,6 +88,27 @@ public sealed partial class NotificationWindow : WinUIEx.WindowEx
         {
             Close();
         }
+    }
+
+    private void OnDeviceCardLoaded(object sender, RoutedEventArgs e)
+    {
+        DeviceCard.Loaded -= OnDeviceCardLoaded;
+
+        // Measure the desired size of the content
+        DeviceCard.Measure(new global::Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
+        var desiredHeight = DeviceCard.DesiredSize.Height;
+
+        // Add padding from the Grid (12px * 2 = 24px)
+        var totalHeight = desiredHeight + 24;
+
+        // Get DPI scale factor
+        var dpi = Content.XamlRoot?.RasterizationScale ?? 1.0;
+        var physicalHeight = (int)(totalHeight * dpi);
+
+        // Resize window height to fit content
+        AppWindow.Resize(new global::Windows.Graphics.SizeInt32(AppWindow.Size.Width, physicalHeight));
+        // recenter after resize
+        MoveToBottomAboveTaskbar();
     }
 }
 

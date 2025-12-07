@@ -152,11 +152,11 @@
                         <TextBlock Text="{x:Bind Device.IsLeftCharging, Mode=OneWay, Converter={StaticResource ChargingIconConverter}}" 
                                    FontSize="14"
                                    VerticalAlignment="Center"
-                                   FontFamily="Segoe UI Emoji"/>
+                                   FontFamily="Segoe MDL2 Assets"/>
                         <TextBlock Text="{x:Bind Device.IsLeftInEar, Mode=OneWay, Converter={StaticResource InEarIconConverter}}" 
                                    FontSize="14"
                                    VerticalAlignment="Center"
-                                   FontFamily="Segoe UI Emoji"/>
+                                   FontFamily="Segoe MDL2 Assets"/>
                     </StackPanel>
                 </Grid>
 
@@ -187,11 +187,11 @@
                         <TextBlock Text="{x:Bind Device.IsRightCharging, Mode=OneWay, Converter={StaticResource ChargingIconConverter}}" 
                                    FontSize="14"
                                    VerticalAlignment="Center"
-                                   FontFamily="Segoe UI Emoji"/>
+                                   FontFamily="Segoe MDL2 Assets"/>
                         <TextBlock Text="{x:Bind Device.IsRightInEar, Mode=OneWay, Converter={StaticResource InEarIconConverter}}" 
                                    FontSize="14"
                                    VerticalAlignment="Center"
-                                   FontFamily="Segoe UI Emoji"/>
+                                   FontFamily="Segoe MDL2 Assets"/>
                     </StackPanel>
                 </Grid>
 
@@ -222,11 +222,11 @@
                         <TextBlock Text="{x:Bind Device.IsCaseCharging, Mode=OneWay, Converter={StaticResource ChargingIconConverter}}" 
                                    FontSize="14"
                                    VerticalAlignment="Center"
-                                   FontFamily="Segoe UI Emoji"/>
+                                   FontFamily="Segoe MDL2 Assets"/>
                         <TextBlock Text="{x:Bind Device.IsLidOpen, Mode=OneWay, Converter={StaticResource LidStatusConverter}}" 
                                    FontSize="14"
                                    VerticalAlignment="Center"
-                                   FontFamily="Segoe UI Emoji"/>
+                                   FontFamily="Segoe MDL2 Assets"/>
                     </StackPanel>
                 </Grid>
             </StackPanel>
