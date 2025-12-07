@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -85,6 +86,9 @@ public partial class AirPodsDeviceViewModel : ObservableObject
 {
     private readonly IBluetoothConnectionService _connectionService;
 
+    [Conditional("DEBUG")]
+    private static void LogDebug(string message) => Debug.WriteLine($"[AirPodsDeviceVM] {message}");
+
     public ulong Address { get; private set; }
     
     /// <summary>
@@ -137,6 +141,7 @@ public partial class AirPodsDeviceViewModel : ObservableObject
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ConnectCommand))]
     [NotifyCanExecuteChangedFor(nameof(ConnectAudioCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ToggleConnectionCommand))]
     private ConnectionState _connection = ConnectionState.Default;
 
     [ObservableProperty]
@@ -278,47 +283,32 @@ public partial class AirPodsDeviceViewModel : ObservableObject
         try
         {
             Connection = Connection with { IsConnecting = true };
-            
-            System.Diagnostics.Debug.WriteLine($"[AirPodsDeviceViewModel] Connecting to {Model} via device ID {Connection.PairedDeviceId}...");
+            LogDebug($"Connecting to {Model}...");
             
             var result = await _connectionService.ConnectByDeviceIdAsync(Connection.PairedDeviceId);
             
             switch (result)
             {
                 case ConnectionResult.Connected:
-                    System.Diagnostics.Debug.WriteLine($"[AirPodsDeviceViewModel] Connection initiated for {Model} using Win32 Bluetooth APIs");
-                    System.Diagnostics.Debug.WriteLine($"[AirPodsDeviceViewModel] Connection should establish within 1-2 seconds");
-                    
-                    // Wait a bit for connection to establish
                     await Task.Delay(1500);
-                    
-                    // Check connection status
-                    if (IsConnected)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[AirPodsDeviceViewModel] Successfully connected to {Model}");
-                    }
-                    else
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[AirPodsDeviceViewModel] Connection may still be establishing. Status will update when connected.");
-                    }
+                    LogDebug(IsConnected ? $"Connected to {Model}" : $"{Model} connection pending");
                     break;
                     
                 case ConnectionResult.DeviceNotFound:
-                    System.Diagnostics.Debug.WriteLine($"[AirPodsDeviceViewModel] {Model} not found (may have been unpaired)");
+                    LogDebug($"{Model} not found (unpaired?)");
                     Connection = Connection with { PairedDeviceId = null };
-                    PairedDeviceId = null; // Keep backward-compatible property in sync
+                    PairedDeviceId = null;
                     break;
                     
                 case ConnectionResult.Failed:
-                    System.Diagnostics.Debug.WriteLine($"[AirPodsDeviceViewModel] Failed to connect to {Model}. Opening Bluetooth settings as fallback...");
-                    // Open settings as fallback for failed connections
+                    LogDebug($"Connect failed for {Model}, opening settings");
                     await BluetoothConnectionService.OpenBluetoothSettingsForDeviceAsync();
                     break;
             }
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[AirPodsDeviceViewModel] Error connecting: {ex.Message}");
+            LogDebug($"Connect error: {ex.Message}");
         }
         finally
         {
@@ -333,12 +323,11 @@ public partial class AirPodsDeviceViewModel : ObservableObject
     {
         try
         {
-            System.Diagnostics.Debug.WriteLine("[AirPodsDeviceViewModel] Opening Windows Bluetooth settings...");
             await global::Windows.System.Launcher.LaunchUriAsync(new Uri("ms-settings:bluetooth"));
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[AirPodsDeviceViewModel] Error opening Bluetooth settings: {ex.Message}");
+            LogDebug($"Settings launch error: {ex.Message}");
         }
     }
 
@@ -355,38 +344,32 @@ public partial class AirPodsDeviceViewModel : ObservableObject
         try
         {
             Connection = Connection with { IsConnecting = true };
-            
-            System.Diagnostics.Debug.WriteLine($"[AirPodsDeviceViewModel] Activating A2DP/HFP audio for {Model}...");
+            LogDebug($"Activating audio for {Model}...");
             
             var result = await _connectionService.ConnectByDeviceIdAsync(Connection.PairedDeviceId);
             
             switch (result)
             {
                 case ConnectionResult.Connected:
-                    System.Diagnostics.Debug.WriteLine($"[AirPodsDeviceViewModel] A2DP/HFP audio profiles activated for {Model}");
-                    System.Diagnostics.Debug.WriteLine($"[AirPodsDeviceViewModel] Audio should now route to device within 1-2 seconds");
-                    
-                    // Wait for audio to route
                     await Task.Delay(1500);
-                    
-                    // Refresh audio output status
                     await RefreshDefaultAudioOutputStatusAsync();
+                    LogDebug($"Audio activated for {Model}");
                     break;
                     
                 case ConnectionResult.DeviceNotFound:
-                    System.Diagnostics.Debug.WriteLine($"[AirPodsDeviceViewModel] {Model} not found (may have been unpaired)");
+                    LogDebug($"{Model} not found (unpaired?)");
                     Connection = Connection with { PairedDeviceId = null };
-                    PairedDeviceId = null; // Keep backward-compatible property in sync
+                    PairedDeviceId = null;
                     break;
                     
                 case ConnectionResult.Failed:
-                    System.Diagnostics.Debug.WriteLine($"[AirPodsDeviceViewModel] Failed to activate audio for {Model}. Try Windows Bluetooth settings.");
+                    LogDebug($"Audio activation failed for {Model}");
                     break;
             }
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[AirPodsDeviceViewModel] Error activating audio: {ex.Message}");
+            LogDebug($"Audio error: {ex.Message}");
         }
         finally
         {
@@ -407,6 +390,7 @@ public partial class AirPodsDeviceViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
     private async Task DisconnectAsync()
     {
         if (!IsConnected || IsConnecting || string.IsNullOrEmpty(Connection.PairedDeviceId))
@@ -415,35 +399,23 @@ public partial class AirPodsDeviceViewModel : ObservableObject
         try
         {
             Connection = Connection with { IsConnecting = true };
-            
-            System.Diagnostics.Debug.WriteLine($"[AirPodsDeviceViewModel] Disconnecting from {Model} via device ID {Connection.PairedDeviceId}...");
+            LogDebug($"Disconnecting from {Model}...");
             
             var success = await _connectionService.DisconnectByDeviceIdAsync(Connection.PairedDeviceId);
             
             if (success)
             {
-                System.Diagnostics.Debug.WriteLine($"[AirPodsDeviceViewModel] Disconnect initiated for {Model}");
-                
-                // Wait a bit for disconnection to complete
                 await Task.Delay(1000);
-                
-                if (!IsConnected)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[AirPodsDeviceViewModel] Successfully disconnected from {Model}");
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine($"[AirPodsDeviceViewModel] Disconnection may still be processing. Status will update when disconnected.");
-                }
+                LogDebug(!IsConnected ? $"Disconnected from {Model}" : $"{Model} disconnect pending");
             }
             else
             {
-                System.Diagnostics.Debug.WriteLine($"[AirPodsDeviceViewModel] Failed to disconnect from {Model}");
+                LogDebug($"Disconnect failed for {Model}");
             }
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[AirPodsDeviceViewModel] Error disconnecting: {ex.Message}");
+            LogDebug($"Disconnect error: {ex.Message}");
         }
         finally
         {
