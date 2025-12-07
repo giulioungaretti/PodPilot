@@ -1,50 +1,69 @@
-﻿using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Data;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Navigation;
-using Microsoft.UI.Xaml.Shapes;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
-using Windows.ApplicationModel;
-using Windows.ApplicationModel.Activation;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
+﻿using System;
+using DeviceCommunication.Services;
+using GUI.Services;
+using GUI.Windows;
+using Microsoft.UI.Dispatching;
+using Microsoft.UI.Xaml;
 
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
+namespace GUI;
 
-namespace GUI
+/// <summary>
+/// Provides application-specific behavior to supplement the default Application class.
+/// </summary>
+public partial class App : Application
 {
+    private MainWindow? _mainWindow;
+    private TrayIconService? _trayIconService;
+    private BackgroundDeviceMonitoringService? _backgroundMonitoringService;
+    private BluetoothConnectionService? _connectionService;
+
     /// <summary>
-    /// Provides application-specific behavior to supplement the default Application class.
+    /// Initializes the singleton application object.
     /// </summary>
-    public partial class App : Application
+    public App()
     {
-        private Window? _window;
+        InitializeComponent();
+    }
 
-        /// <summary>
-        /// Initializes the singleton application object.  This is the first line of authored code
-        /// executed, and as such is the logical equivalent of main() or WinMain().
-        /// </summary>
-        public App()
-        {
-            InitializeComponent();
-        }
+    /// <summary>
+    /// Invoked when the application is launched.
+    /// </summary>
+    protected override void OnLaunched(LaunchActivatedEventArgs args)
+    {
+        _mainWindow = new MainWindow();
+        
+        // Initialize Bluetooth connection service
+        _connectionService = new BluetoothConnectionService();
+        
+        // Initialize tray icon service (simplified - just manages window visibility)
+        _trayIconService = new TrayIconService(_mainWindow);
+        
+        // Initialize background monitoring service
+        _backgroundMonitoringService = new BackgroundDeviceMonitoringService(
+            DispatcherQueue.GetForCurrentThread());
+        _backgroundMonitoringService.PairedDeviceDetected += OnPairedDeviceDetected;
+        _backgroundMonitoringService.Start();
+        
+        _mainWindow.Activate();
+    }
 
-        /// <summary>
-        /// Invoked when the application is launched.
-        /// </summary>
-        /// <param name="args">Details about the launch request and process.</param>
-        protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
+    private void OnMainWindowMinimizeRequested(object? sender, EventArgs e)
+    {
+        // When main window is minimized, hide it
+        _trayIconService?.Hide();
+    }
+
+    private void OnPairedDeviceDetected(object? sender, DeviceCommunication.Models.AirPodsDeviceInfo deviceInfo)
+    {
+        if (_connectionService == null)
+            return;
+
+        // Show notification window
+        var notificationWindow = new NotificationWindow(deviceInfo, _connectionService);
+        notificationWindow.OpenMainWindowRequested += (s, e) =>
         {
-            _window = new MainWindow();
-            _window.Activate();
-        }
+            _trayIconService?.Show();
+        };
+        notificationWindow.Activate();
     }
 }

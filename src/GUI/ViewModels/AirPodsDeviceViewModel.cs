@@ -259,7 +259,7 @@ public partial class AirPodsDeviceViewModel : ObservableObject
         try
         {
             System.Diagnostics.Debug.WriteLine("[AirPodsDeviceViewModel] Opening Windows Bluetooth settings...");
-            await Windows.System.Launcher.LaunchUriAsync(new Uri("ms-settings:bluetooth"));
+            await global::Windows.System.Launcher.LaunchUriAsync(new Uri("ms-settings:bluetooth"));
         }
         catch (Exception ex)
         {
