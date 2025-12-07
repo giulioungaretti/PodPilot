@@ -95,5 +95,41 @@ namespace DeviceCommunication.Apple
                 _ => AppleDeviceModel.Unknown
             };
         }
+
+        /// <summary>
+        /// Gets a user-friendly display name for the device model.
+        /// </summary>
+        /// <param name="model">The device model.</param>
+        /// <returns>A human-readable name for the device model.</returns>
+        public static string GetDisplayName(this AppleDeviceModel model) => model switch
+        {
+            AppleDeviceModel.AirPods1 => "AirPods (1st generation)",
+            AppleDeviceModel.AirPods2 => "AirPods (2nd generation)",
+            AppleDeviceModel.AirPods3 => "AirPods (3rd generation)",
+            AppleDeviceModel.AirPodsPro => "AirPods Pro",
+            AppleDeviceModel.AirPodsPro2 => "AirPods Pro (2nd generation)",
+            AppleDeviceModel.AirPodsPro2UsbC => "AirPods Pro (2nd gen, USB-C)",
+            AppleDeviceModel.AirPodsMax => "AirPods Max",
+            AppleDeviceModel.BeatsFitPro => "Beats Fit Pro",
+            _ => "Unknown AirPods"
+        };
+
+        /// <summary>
+        /// Gets the Product ID for the device model, used for matching to Windows paired devices.
+        /// </summary>
+        /// <param name="model">The device model.</param>
+        /// <returns>The Product ID, or null if the model is unknown.</returns>
+        public static ushort? GetProductId(this AppleDeviceModel model) => model switch
+        {
+            AppleDeviceModel.AirPods1 => 0x2002,
+            AppleDeviceModel.AirPods2 => 0x200F,
+            AppleDeviceModel.AirPods3 => 0x2013,
+            AppleDeviceModel.AirPodsPro => 0x200E,
+            AppleDeviceModel.AirPodsPro2 => 0x2014,
+            AppleDeviceModel.AirPodsPro2UsbC => 0x2024,
+            AppleDeviceModel.AirPodsMax => 0x200A,
+            AppleDeviceModel.BeatsFitPro => 0x2012,
+            _ => null
+        };
     }
 }
