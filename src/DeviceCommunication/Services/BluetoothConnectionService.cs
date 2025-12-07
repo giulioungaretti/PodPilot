@@ -69,51 +69,62 @@ public sealed class BluetoothConnectionService : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
+        System.Diagnostics.Debug.WriteLine($"");
+        System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] ========================================");
+        System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] === ConnectByDeviceIdAsync START ===");
+        System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] DeviceId: {deviceId}");
+        System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] Timestamp: {DateTime.Now:HH:mm:ss.fff}");
+        System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] ========================================");
+
         if (string.IsNullOrEmpty(deviceId))
         {
+            System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] ERROR: DeviceId is null or empty");
             return ConnectionResult.DeviceNotFound;
         }
 
         try
         {
+            System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] Getting BluetoothDevice from ID...");
             var device = await BluetoothDevice.FromIdAsync(deviceId);
 
             if (device == null)
             {
+                System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] ERROR: BluetoothDevice.FromIdAsync returned null");
                 return ConnectionResult.DeviceNotFound;
             }
 
+            System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] Device found:");
+            System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService]   Name: {device.Name}");
+            System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService]   Address: {device.BluetoothAddress:X12}");
+            System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService]   ConnectionStatus: {device.ConnectionStatus}");
+
             // Verify pairing status
+            System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] Checking pairing status...");
             var isPaired = await CheckPairingStatusAsync(device);
+            System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] IsPaired: {isPaired}");
 
             if (!isPaired)
             {
+                System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] ERROR: Device is not paired");
                 device.Dispose();
                 return ConnectionResult.NeedsPairing;
             }
 
             var deviceAddress = device.BluetoothAddress;
-            System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] Connecting to device {deviceAddress:X12}...");
+            System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] Device is paired, initiating connection to {deviceAddress:X12}...");
 
             // Strategy 1: Try Win32 Bluetooth APIs first (most reliable for audio devices)
             bool win32Connected = false;
             try
             {
-                System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] Attempting Win32 API connection...");
+                System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] Calling Win32BluetoothConnector.ConnectAudioDeviceAsync...");
                 win32Connected = await _win32Connector.ConnectAudioDeviceAsync(deviceAddress);
                 
-                if (win32Connected)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] Win32 connection successful!");
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] Win32 connection failed, trying fallback method...");
-                }
+                System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] Win32BluetoothConnector result: {(win32Connected ? "SUCCESS" : "FAILED")}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] Win32 connection error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] Win32 connection exception: {ex.Message}");
             }
 
             // Strategy 2: Fallback to WinRT property access (may trigger connection in some cases)
@@ -137,17 +148,35 @@ public sealed class BluetoothConnectionService : IDisposable
                     if (detailedInfo.Properties.TryGetValue("System.Devices.Aep.IsConnected", out var isConnectedObj))
                     {
                         var isConnected = isConnectedObj as bool? ?? false;
-                        System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] Device AEP connection status: {isConnected}");
+                        System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] Device AEP IsConnected property: {isConnected}");
+                    }
+                    
+                    foreach (var prop in detailedInfo.Properties)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService]   {prop.Key}: {prop.Value}");
                     }
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] WinRT fallback failed: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] WinRT fallback exception: {ex.Message}");
                 }
             }
 
             // Give Windows a moment to establish the connection
-            await Task.Delay(win32Connected ? 1000 : 2000);
+            var waitTime = win32Connected ? 1000 : 2000;
+            System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] Waiting {waitTime}ms for connection to establish...");
+            await Task.Delay(waitTime);
+
+            // Verify audio endpoint exists after connection
+            System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] Verifying audio endpoint...");
+            var audioEndpointExists = await Win32BluetoothConnector.VerifyAudioEndpointExistsAsync(deviceAddress);
+            System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] Audio endpoint verification: {(audioEndpointExists ? "EXISTS" : "NOT FOUND")}");
+            
+            if (!audioEndpointExists && win32Connected)
+            {
+                System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] WARNING: Win32 connection succeeded but no audio endpoint found.");
+                System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] Audio may not route correctly. Try connecting manually via Windows Settings once.");
+            }
 
             // Store reference (dispose any existing)
             _connectedDevices.AddOrUpdate(
@@ -160,21 +189,32 @@ public sealed class BluetoothConnectionService : IDisposable
                 });
 
             // Check if connection was established
+            System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] Post-connection status check:");
+            System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService]   device.ConnectionStatus: {device.ConnectionStatus}");
+            
             if (device.ConnectionStatus == BluetoothConnectionStatus.Connected)
             {
-                System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] Device connected successfully via {(win32Connected ? "Win32 API" : "WinRT API")}");
+                System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] SUCCESS: Device is now Connected");
+                System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] ========================================");
                 return ConnectionResult.Connected;
             }
             else
             {
-                System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] Connection attempt completed. Status: {device.ConnectionStatus}");
+                System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] Connection attempt completed but device status is: {device.ConnectionStatus}");
                 // Return success if Win32 reported success, even if WinRT status not updated yet
+                if (win32Connected)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] Returning Connected based on Win32 success (WinRT status may lag)");
+                }
+                System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] ========================================");
                 return win32Connected ? ConnectionResult.Connected : ConnectionResult.Failed;
             }
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] Connection failed with exception: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] EXCEPTION: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] Stack trace: {ex.StackTrace}");
+            System.Diagnostics.Debug.WriteLine($"[BluetoothConnectionService] ========================================");
             return ConnectionResult.Failed;
         }
     }
