@@ -106,6 +106,8 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
             else
             {
                 device.RefreshIsActive();
+                // Refresh audio output status periodically (fire and forget since we're in a timer)
+                _ = device.RefreshDefaultAudioOutputStatusAsync();
             }
         }
 

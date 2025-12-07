@@ -67,8 +67,16 @@ public partial class AirPodsDeviceViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(ConnectionButtonText))]
     [NotifyPropertyChangedFor(nameof(ConnectionButtonTooltip))]
     [NotifyPropertyChangedFor(nameof(CanToggleConnection))]
+    [NotifyPropertyChangedFor(nameof(ShowConnectAudioButton))]
+    [NotifyPropertyChangedFor(nameof(CanConnectAudio))]
     [NotifyCanExecuteChangedFor(nameof(ConnectCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ConnectAudioCommand))]
     private bool _isConnected;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowConnectAudioButton))]
+    [NotifyPropertyChangedFor(nameof(CanConnectAudio))]
+    private bool _isDefaultAudioOutput;
 
     [ObservableProperty]
     private int _signalStrength;
@@ -82,6 +90,9 @@ public partial class AirPodsDeviceViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(ConnectionButtonText))]
     [NotifyPropertyChangedFor(nameof(ConnectionButtonTooltip))]
     [NotifyPropertyChangedFor(nameof(CanToggleConnection))]
+    [NotifyPropertyChangedFor(nameof(ShowConnectAudioButton))]
+    [NotifyPropertyChangedFor(nameof(CanConnectAudio))]
+    [NotifyCanExecuteChangedFor(nameof(ConnectAudioCommand))]
     private bool _isConnecting;
 
     /// <summary>
@@ -135,6 +146,19 @@ public partial class AirPodsDeviceViewModel : ObservableObject
     /// True when device is not found in Windows paired devices list.
     /// </summary>
     public bool ShowPairingWarning => string.IsNullOrEmpty(PairedDeviceId) && !IsConnected;
+
+    /// <summary>
+    /// Gets whether to show the "Connect Audio" button.
+    /// Shows when device is paired, not currently connecting, and not already the default audio output.
+    /// This button explicitly activates A2DP/HFP audio profiles.
+    /// </summary>
+    public bool ShowConnectAudioButton => !string.IsNullOrEmpty(PairedDeviceId) && !IsConnecting && !IsDefaultAudioOutput;
+
+    /// <summary>
+    /// Gets whether the "Connect Audio" button should be enabled.
+    /// Enabled when device is paired, not currently connecting, and not already the default audio output.
+    /// </summary>
+    public bool CanConnectAudio => !string.IsNullOrEmpty(PairedDeviceId) && !IsConnecting && !IsDefaultAudioOutput;
 
     public AirPodsDeviceViewModel(AirPodsDeviceInfo deviceInfo, BluetoothConnectionService connectionService)
     {
@@ -191,6 +215,28 @@ public partial class AirPodsDeviceViewModel : ObservableObject
     public void RefreshIsActive()
     {
         OnPropertyChanged(nameof(IsActive));
+    }
+
+    /// <summary>
+    /// Refreshes the IsDefaultAudioOutput property by checking the current Windows audio output.
+    /// Call this after connection attempts or periodically to keep the UI in sync.
+    /// </summary>
+    public async Task RefreshDefaultAudioOutputStatusAsync()
+    {
+        if (Address == 0)
+        {
+            IsDefaultAudioOutput = false;
+            return;
+        }
+
+        try
+        {
+            IsDefaultAudioOutput = await Win32BluetoothConnector.IsDefaultAudioOutputAsync(Address);
+        }
+        catch
+        {
+            IsDefaultAudioOutput = false;
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanConnect))]
@@ -264,6 +310,60 @@ public partial class AirPodsDeviceViewModel : ObservableObject
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[AirPodsDeviceViewModel] Error opening Bluetooth settings: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Explicitly connects the audio profiles (A2DP, HFP) for this device.
+    /// Use this when the device appears connected but audio isn't routing to it.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanConnectAudio))]
+    private async Task ConnectAudioAsync()
+    {
+        if (IsConnecting || string.IsNullOrEmpty(PairedDeviceId))
+            return;
+
+        try
+        {
+            IsConnecting = true;
+            
+            System.Diagnostics.Debug.WriteLine($"[AirPodsDeviceViewModel] Activating A2DP/HFP audio for {Model}...");
+            
+            var result = await _connectionService.ConnectByDeviceIdAsync(PairedDeviceId);
+            
+            switch (result)
+            {
+                case ConnectionResult.Connected:
+                    System.Diagnostics.Debug.WriteLine($"[AirPodsDeviceViewModel] A2DP/HFP audio profiles activated for {Model}");
+                    System.Diagnostics.Debug.WriteLine($"[AirPodsDeviceViewModel] Audio should now route to device within 1-2 seconds");
+                    
+                    // Wait for audio to route
+                    await Task.Delay(1500);
+                    
+                    // Refresh audio output status
+                    await RefreshDefaultAudioOutputStatusAsync();
+                    break;
+                    
+                case ConnectionResult.DeviceNotFound:
+                    System.Diagnostics.Debug.WriteLine($"[AirPodsDeviceViewModel] {Model} not found (may have been unpaired)");
+                    PairedDeviceId = null;
+                    OnPropertyChanged(nameof(ShowPairingWarning));
+                    OnPropertyChanged(nameof(ShowConnectAudioButton));
+                    OnPropertyChanged(nameof(CanConnectAudio));
+                    break;
+                    
+                case ConnectionResult.Failed:
+                    System.Diagnostics.Debug.WriteLine($"[AirPodsDeviceViewModel] Failed to activate audio for {Model}. Try Windows Bluetooth settings.");
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[AirPodsDeviceViewModel] Error activating audio: {ex.Message}");
+        }
+        finally
+        {
+            IsConnecting = false;
         }
     }
 
