@@ -1,7 +1,7 @@
+using System.Diagnostics;
 using DeviceCommunication.Advertisement;
 using DeviceCommunication.Apple;
 using DeviceCommunication.Models;
-using Windows.Devices.Bluetooth;
 
 namespace DeviceCommunication.Services;
 
@@ -12,6 +12,7 @@ namespace DeviceCommunication.Services;
 public class SimpleAirPodsDiscoveryService : IAirPodsDiscoveryService
 {
     private readonly IAdvertisementWatcher _watcher;
+    private readonly IPairedDeviceLookupService _pairedDeviceLookup;
     private readonly Dictionary<ushort, DeviceState> _devicesByProductId;
     private readonly TimeSpan _deviceTimeout = TimeSpan.FromMinutes(5);
     private bool _disposed;
@@ -19,24 +20,36 @@ public class SimpleAirPodsDiscoveryService : IAirPodsDiscoveryService
     public event EventHandler<AirPodsDeviceInfo>? DeviceDiscovered;
     public event EventHandler<AirPodsDeviceInfo>? DeviceUpdated;
 
-    public SimpleAirPodsDiscoveryService() : this(new AdvertisementWatcher())
+    /// <summary>
+    /// Creates a new instance with default dependencies.
+    /// </summary>
+    public SimpleAirPodsDiscoveryService()
+        : this(new AdvertisementWatcher(), new PairedDeviceLookupService())
     {
     }
 
-    public SimpleAirPodsDiscoveryService(IAdvertisementWatcher watcher)
+    /// <summary>
+    /// Creates a new instance with the specified dependencies.
+    /// </summary>
+    /// <param name="watcher">The BLE advertisement watcher.</param>
+    /// <param name="pairedDeviceLookup">The paired device lookup service with caching.</param>
+    public SimpleAirPodsDiscoveryService(IAdvertisementWatcher watcher, IPairedDeviceLookupService pairedDeviceLookup)
     {
         _watcher = watcher ?? throw new ArgumentNullException(nameof(watcher));
+        _pairedDeviceLookup = pairedDeviceLookup ?? throw new ArgumentNullException(nameof(pairedDeviceLookup));
         _devicesByProductId = new Dictionary<ushort, DeviceState>();
         _watcher.AdvertisementReceived += OnAdvertisementReceived;
     }
 
     public void StartScanning()
     {
+        LogDebug("StartScanning called");
         _watcher.Start();
     }
 
     public void StopScanning()
     {
+        LogDebug("StopScanning called");
         _watcher.Stop();
     }
 
@@ -66,22 +79,43 @@ public class SimpleAirPodsDiscoveryService : IAirPodsDiscoveryService
         if (model == AppleDeviceModel.Unknown)
             return;
 
-        var productId = GetProductIdFromModel(model);
+        var productId = model.GetProductId();
         if (!productId.HasValue)
             return;
 
         // Check if this is a new device or an update
         bool isNewDevice = !_devicesByProductId.ContainsKey(productId.Value);
+        
+        if (isNewDevice)
+        {
+            LogDebug($"=== NEW DEVICE DETECTED ===");
+            LogDebug($"Model: {model}");
+            LogDebug($"ProductId: 0x{productId.Value:X4}");
+            LogDebug($"BLE Address: {data.Address:X12}");
+            LogDebug($"Signal: {data.Rssi} dBm");
+        }
 
-        // Try to find paired device with matching Product ID
-        var pairedDevice = await FindPairedDeviceByProductIdAsync(productId.Value);
+        // Try to find paired device with matching Product ID (cached lookup)
+        var pairedDevice = await _pairedDeviceLookup.FindByProductIdAsync(productId.Value);
+        
+        if (isNewDevice)
+        {
+            if (pairedDevice != null)
+            {
+                LogDebug($"Paired device found: {pairedDevice.Name} (Connected={pairedDevice.IsConnected})");
+            }
+            else
+            {
+                LogDebug($"WARNING: No paired device found for ProductId 0x{productId.Value:X4}");
+            }
+        }
 
         var deviceInfo = new AirPodsDeviceInfo
         {
             Address = data.Address,
             ProductId = productId.Value,
-            Model = GetModelDisplayName(model),
-            DeviceName = pairedDevice?.Name ?? GetModelDisplayName(model),
+            Model = model.GetDisplayName(),
+            DeviceName = pairedDevice?.Name ?? model.GetDisplayName(),
             PairedDeviceId = pairedDevice?.Id,
             LeftBattery = airPods.GetLeftBattery() * 10,
             RightBattery = airPods.GetRightBattery() * 10,
@@ -92,6 +126,7 @@ public class SimpleAirPodsDiscoveryService : IAirPodsDiscoveryService
             IsLeftInEar = airPods.IsLeftInEar(),
             IsRightInEar = airPods.IsRightInEar(),
             IsLidOpen = airPods.IsLidOpened(),
+            IsBothPodsInCase = airPods.IsBothPodsInCase(),
             SignalStrength = data.Rssi,
             LastSeen = DateTime.Now,
             IsConnected = pairedDevice?.IsConnected ?? false
@@ -104,88 +139,18 @@ public class SimpleAirPodsDiscoveryService : IAirPodsDiscoveryService
         };
 
         if (isNewDevice)
+        {
+            LogDebug("Raising DeviceDiscovered event");
             DeviceDiscovered?.Invoke(this, deviceInfo);
+        }
         else
+        {
             DeviceUpdated?.Invoke(this, deviceInfo);
-    }
-
-    /// <summary>
-    /// Finds a paired Bluetooth device with the specified Product ID.
-    /// </summary>
-    private static async Task<PairedDeviceInfo?> FindPairedDeviceByProductIdAsync(ushort targetProductId)
-    {
-        try
-        {
-            // Get all paired Bluetooth devices
-            var selector = BluetoothDevice.GetDeviceSelectorFromPairingState(true);
-            var deviceInfos = await Windows.Devices.Enumeration.DeviceInformation.FindAllAsync(selector);
-
-            foreach (var deviceInfo in deviceInfos)
-            {
-                try
-                {
-                    using var device = await DeviceCommunication.Device.Device.FromDeviceIdAsync(deviceInfo.Id);
-                    
-                    // Try to get Product ID
-                    var productId = await device.GetProductIdAsync();
-                    
-                    if (productId == targetProductId)
-                    {
-                        return new PairedDeviceInfo
-                        {
-                            Id = deviceInfo.Id,
-                            Name = device.GetName(),
-                            Address = device.GetAddress(),
-                            IsConnected = device.IsConnected()
-                        };
-                    }
-                }
-                catch
-                {
-                    // Skip devices that don't have Product ID or fail to query
-                    continue;
-                }
-            }
         }
-        catch
-        {
-            // Failed to enumerate devices
-        }
-
-        return null;
     }
 
-    private static ushort? GetProductIdFromModel(AppleDeviceModel model)
-    {
-        return model switch
-        {
-            AppleDeviceModel.AirPods1 => 0x2002,
-            AppleDeviceModel.AirPods2 => 0x200F,
-            AppleDeviceModel.AirPods3 => 0x2013,
-            AppleDeviceModel.AirPodsPro => 0x200E,
-            AppleDeviceModel.AirPodsPro2 => 0x2014,
-            AppleDeviceModel.AirPodsPro2UsbC => 0x2024,
-            AppleDeviceModel.AirPodsMax => 0x200A,
-            AppleDeviceModel.BeatsFitPro => 0x2012,
-            _ => null
-        };
-    }
-
-    private static string GetModelDisplayName(AppleDeviceModel model)
-    {
-        return model switch
-        {
-            AppleDeviceModel.AirPods1 => "AirPods (1st generation)",
-            AppleDeviceModel.AirPods2 => "AirPods (2nd generation)",
-            AppleDeviceModel.AirPods3 => "AirPods (3rd generation)",
-            AppleDeviceModel.AirPodsPro => "AirPods Pro",
-            AppleDeviceModel.AirPodsPro2 => "AirPods Pro (2nd generation)",
-            AppleDeviceModel.AirPodsPro2UsbC => "AirPods Pro (2nd gen, USB-C)",
-            AppleDeviceModel.AirPodsMax => "AirPods Max",
-            AppleDeviceModel.BeatsFitPro => "Beats Fit Pro",
-            _ => "Unknown AirPods"
-        };
-    }
+    [Conditional("DEBUG")]
+    private static void LogDebug(string message) => Debug.WriteLine($"[SimpleAirPodsDiscoveryService] {message}");
 
     public void Dispose()
     {
@@ -198,17 +163,9 @@ public class SimpleAirPodsDiscoveryService : IAirPodsDiscoveryService
         _disposed = true;
     }
 
-    private class DeviceState
+    private sealed class DeviceState
     {
         public required AirPodsDeviceInfo DeviceInfo { get; init; }
         public DateTime LastSeen { get; set; }
-    }
-
-    private class PairedDeviceInfo
-    {
-        public required string Id { get; init; }
-        public required string Name { get; init; }
-        public required ulong Address { get; init; }
-        public required bool IsConnected { get; init; }
     }
 }
