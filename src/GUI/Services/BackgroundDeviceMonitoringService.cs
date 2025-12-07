@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using DeviceCommunication.Models;
 using DeviceCommunication.Services;
 using Microsoft.UI.Dispatching;
@@ -13,7 +13,7 @@ namespace GUI.Services;
 public sealed class BackgroundDeviceMonitoringService : IBackgroundDeviceMonitoringService
 {
     private readonly IAirPodsDiscoveryService _discoveryService;
-    private readonly Dictionary<string, DeviceConnectionState> _deviceStates;
+    private readonly ConcurrentDictionary<string, DeviceConnectionState> _deviceStates;
     private readonly DispatcherQueue _dispatcherQueue;
     private bool _disposed;
 
@@ -26,7 +26,7 @@ public sealed class BackgroundDeviceMonitoringService : IBackgroundDeviceMonitor
         
         _dispatcherQueue = dispatcherQueue;
         _discoveryService = discoveryService;
-        _deviceStates = new Dictionary<string, DeviceConnectionState>();
+        _deviceStates = new ConcurrentDictionary<string, DeviceConnectionState>();
         
         _discoveryService.DeviceDiscovered += OnDeviceDiscovered;
         _discoveryService.DeviceUpdated += OnDeviceUpdated;
@@ -47,13 +47,20 @@ public sealed class BackgroundDeviceMonitoringService : IBackgroundDeviceMonitor
         if (string.IsNullOrEmpty(device.PairedDeviceId))
             return;
 
-        // Track the new device state
-        var state = new DeviceConnectionState
-        {
-            IsConnected = device.IsConnected,
-            HasNotified = false
-        };
-        _deviceStates[device.PairedDeviceId] = state;
+        // Track the new device state (thread-safe)
+        var state = _deviceStates.AddOrUpdate(
+            device.PairedDeviceId,
+            _ => new DeviceConnectionState
+            {
+                IsConnected = device.IsConnected,
+                HasNotified = false
+            },
+            (_, existing) =>
+            {
+                existing.IsConnected = device.IsConnected;
+                existing.HasNotified = false;
+                return existing;
+            });
 
         // Notify if device is connected
         if (device.IsConnected)
@@ -67,12 +74,8 @@ public sealed class BackgroundDeviceMonitoringService : IBackgroundDeviceMonitor
         if (string.IsNullOrEmpty(device.PairedDeviceId))
             return;
 
-        // Get or create device state
-        if (!_deviceStates.TryGetValue(device.PairedDeviceId, out var state))
-        {
-            state = new DeviceConnectionState();
-            _deviceStates[device.PairedDeviceId] = state;
-        }
+        // Get or create device state (thread-safe)
+        var state = _deviceStates.GetOrAdd(device.PairedDeviceId, _ => new DeviceConnectionState());
 
         bool wasConnected = state.IsConnected;
         bool isConnected = device.IsConnected;
@@ -144,3 +147,4 @@ public sealed class BackgroundDeviceMonitoringService : IBackgroundDeviceMonitor
         public bool HasNotified { get; set; }
     }
 }
+
