@@ -5,23 +5,43 @@ using DeviceCommunication.Models;
 namespace DeviceCommunication.Services;
 
 /// <summary>
-/// Advanced implementation of <see cref="IAirPodsDiscoveryService"/> that groups broadcasts from the same device.
+/// [LEGACY ARCHITECTURE] Advanced implementation of <see cref="IAirPodsDiscoveryService"/> that groups broadcasts from the same device.
 /// Uses battery signature and temporal proximity to merge broadcasts from different Bluetooth addresses
 /// (left/right pods) into a single logical device.
 /// </summary>
+/// <remarks>
+/// <para><strong>?? LEGACY - Use <see cref="SimpleAirPodsDiscoveryService"/> instead</strong></para>
+/// <para>This implementation demonstrates the old complex grouping architecture that has been replaced
+/// by a much simpler Product ID-based approach. Kept for educational purposes.</para>
+/// <para><strong>Why this approach was replaced:</strong></para>
+/// <list type="bullet">
+/// <item>Required complex battery signature matching</item>
+/// <item>Needed temporal proximity windows (30-second grouping)</item>
+/// <item>Tracked multiple rotating addresses per device</item>
+/// <item>Required cleanup of expired signatures</item>
+/// <item>Generated GUIDs for device identification</item>
+/// </list>
+/// <para><strong>New approach (SimpleAirPodsDiscoveryService):</strong></para>
+/// <list type="bullet">
+/// <item>Uses stable Product ID from BLE advertisement</item>
+/// <item>Single-pass lookup: Product ID ? Windows paired device</item>
+/// <item>No signature matching or temporal windows needed</item>
+/// <item>No address rotation tracking required</item>
+/// <item>Significantly simpler code and logic</item>
+/// </list>
+/// </remarks>
+[Obsolete("This class uses legacy battery signature grouping. Use SimpleAirPodsDiscoveryService with Product ID-based identification instead. Kept for educational purposes.")]
 public class GroupedAirPodsDiscoveryService : IAirPodsDiscoveryService
 {
     private readonly IAdvertisementWatcher _watcher;
     private readonly Dictionary<Guid, DeviceGroup> _deviceGroups;
     private readonly Dictionary<DeviceSignature, Guid> _signatureToDeviceId;
     private readonly TimeSpan _groupingWindow = TimeSpan.FromSeconds(30);
-    private readonly TimeSpan _deviceTimeout = TimeSpan.FromSeconds(15);
-    private readonly Timer _cleanupTimer;
+    private readonly TimeSpan _deviceTimeout = TimeSpan.FromMinutes(5);
     private bool _disposed;
 
     public event EventHandler<AirPodsDeviceInfo>? DeviceDiscovered;
     public event EventHandler<AirPodsDeviceInfo>? DeviceUpdated;
-    public event EventHandler<AirPodsDeviceInfo>? DeviceRemoved;
 
     public GroupedAirPodsDiscoveryService() : this(new AdvertisementWatcher())
     {
@@ -33,7 +53,6 @@ public class GroupedAirPodsDiscoveryService : IAirPodsDiscoveryService
         _deviceGroups = new Dictionary<Guid, DeviceGroup>();
         _signatureToDeviceId = new Dictionary<DeviceSignature, Guid>();
         _watcher.AdvertisementReceived += OnAdvertisementReceived;
-        _cleanupTimer = new Timer(CleanupExpiredDevices, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
     }
 
     public void StartScanning()
@@ -55,21 +74,6 @@ public class GroupedAirPodsDiscoveryService : IAirPodsDiscoveryService
             .ToList();
 
         return activeDevices;
-    }
-
-    private void CleanupExpiredDevices(object? state)
-    {
-        var now = DateTime.Now;
-        var expiredGroups = _deviceGroups
-            .Where(kvp => now - kvp.Value.LastSeen > _deviceTimeout)
-            .Select(kvp => kvp.Value)
-            .ToList();
-
-        foreach (var group in expiredGroups)
-        {
-            _deviceGroups.Remove(group.DeviceId);
-            DeviceRemoved?.Invoke(this, group.DeviceInfo);
-        }
     }
 
     private void OnAdvertisementReceived(object? sender, AdvertisementReceivedData data)
@@ -151,7 +155,7 @@ public class GroupedAirPodsDiscoveryService : IAirPodsDiscoveryService
             IsLidOpen = airPods.IsLidOpened(),
             SignalStrength = data.Rssi,
             LastSeen = DateTime.Now,
-            IsConnected = false  // BLE advertisement presence doesn't indicate Bluetooth connection
+            IsConnected = true
         };
 
         if (isNewDevice)
@@ -218,7 +222,6 @@ public class GroupedAirPodsDiscoveryService : IAirPodsDiscoveryService
         if (_disposed)
             return;
 
-        _cleanupTimer.Dispose();
         _watcher.Stop();
         _watcher.Dispose();
         _deviceGroups.Clear();

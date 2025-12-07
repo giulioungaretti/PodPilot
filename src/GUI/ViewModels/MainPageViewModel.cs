@@ -1,236 +1,127 @@
 using System;
-using System.Collections.ObjectModel;
 using System.Linq;
-using System.Reactive.Concurrency;
-using System.Reactive.Linq;
-using System.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using DeviceCommunication.Models;
 using DeviceCommunication.Services;
+using System.Collections.ObjectModel;
+using Microsoft.UI.Dispatching;
 
 namespace GUI.ViewModels;
 
 /// <summary>
 /// ViewModel for the main page displaying AirPods devices.
-/// Uses reactive pattern with MVVM Toolkit for clean, simple state management.
-/// Implements smart device timeout: inactive after 60s, removed after 5min.
 /// </summary>
 public partial class MainPageViewModel : ObservableObject, IDisposable
 {
-    private readonly AirPodsDeviceAggregator _aggregator;
-    private readonly IDisposable _deviceChangesSubscription;
-    private readonly IDisposable _isActiveRefreshSubscription;
+    private readonly IAirPodsDiscoveryService _discoveryService;
+    private readonly BluetoothConnectionService _connectionService;
+    private readonly DispatcherQueue _dispatcherQueue;
+    private readonly DispatcherQueueTimer _cleanupTimer;
 
     [ObservableProperty]
     private bool _isScanning;
 
-    /// <summary>
-    /// Gets whether any devices have been discovered.
-    /// Computed automatically from DiscoveredDevices.Count.
-    /// </summary>
-    public bool HasDiscoveredDevices => DiscoveredDevices.Count > 0;
+    [ObservableProperty]
+    private bool _hasDiscoveredDevices;
 
     public ObservableCollection<AirPodsDeviceViewModel> DiscoveredDevices { get; }
 
-    public MainPageViewModel(AirPodsDeviceAggregator aggregator)
+    public MainPageViewModel(
+        IAirPodsDiscoveryService discoveryService,
+        BluetoothConnectionService connectionService,
+        DispatcherQueue dispatcherQueue)
     {
-        _aggregator = aggregator ?? throw new ArgumentNullException(nameof(aggregator));
+        _discoveryService = discoveryService;
+        _connectionService = connectionService;
+        _dispatcherQueue = dispatcherQueue;
         DiscoveredDevices = new ObservableCollection<AirPodsDeviceViewModel>();
 
-        // Notify when collection changes
-        DiscoveredDevices.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasDiscoveredDevices));
+        _discoveryService.DeviceDiscovered += OnDeviceDiscovered;
+        _discoveryService.DeviceUpdated += OnDeviceUpdated;
 
-        // Subscribe to device state changes on UI thread automatically
-        var syncContext = SynchronizationContext.Current;
-        _deviceChangesSubscription = _aggregator.DeviceChanges
-            .ObserveOn(syncContext != null ? new SynchronizationContextScheduler(syncContext) : Scheduler.CurrentThread)
-            .Subscribe(
-                onNext: ProcessDeviceStateChange,
-                onError: ex => Console.Error.WriteLine($"[MainPageViewModel] Error in device stream: {ex}")
-            );
-
-        // Timer to refresh IsActive property for all devices
-        _isActiveRefreshSubscription = Observable
-            .Interval(TimeSpan.FromSeconds(1))
-            .ObserveOn(syncContext != null ? new SynchronizationContextScheduler(syncContext) : Scheduler.CurrentThread)
-            .Subscribe(_ => RefreshIsActiveForAllDevices());
+        _cleanupTimer = _dispatcherQueue.CreateTimer();
+        _cleanupTimer.Interval = TimeSpan.FromSeconds(1);
+        _cleanupTimer.Tick += OnCleanupTimerTick;
     }
 
     public void Initialize()
     {
         StartScanning();
+        _cleanupTimer.Start();
     }
 
     [RelayCommand]
     private void StartScanning()
     {
         IsScanning = true;
-        _aggregator.Start();
+        _discoveryService.StartScanning();
     }
 
     [RelayCommand]
     private void StopScanning()
     {
         IsScanning = false;
-        _aggregator.Stop();
+        _discoveryService.StopScanning();
     }
 
-    private void ProcessDeviceStateChange(DeviceStateChange change)
+    private void OnDeviceDiscovered(object? sender, AirPodsDeviceInfo device)
     {
-        switch (change.ChangeType)
+        // Marshal to UI thread to ensure thread-safe collection modification
+        _dispatcherQueue.TryEnqueue(() =>
         {
-            case DeviceChangeType.Added:
-                AddDevice(change);
-                break;
-
-            case DeviceChangeType.Updated:
-                UpdateDevice(change);
-                break;
-
-            case DeviceChangeType.Removed:
-                RemoveDevice(change);
-                break;
-        }
+            var deviceViewModel = new AirPodsDeviceViewModel(device, _connectionService);
+            DiscoveredDevices.Add(deviceViewModel);
+            HasDiscoveredDevices = DiscoveredDevices.Count > 0;
+        });
     }
 
-    private void AddDevice(DeviceStateChange change)
+    private void OnDeviceUpdated(object? sender, AirPodsDeviceInfo device)
     {
-        var deviceViewModel = new AirPodsDeviceViewModel(change.DeviceId, change.Device);
-        
-        // Subscribe to property changes to re-sort when connection state changes
-        deviceViewModel.PropertyChanged += OnDevicePropertyChanged;
-
-        // Insert in sorted order: connected devices first, then by signal strength
-        var index = DiscoveredDevices
-            .TakeWhile(d => ShouldComeBefore(d, deviceViewModel))
-            .Count();
-
-        DiscoveredDevices.Insert(index, deviceViewModel);
-    }
-
-    private bool ShouldComeBefore(AirPodsDeviceViewModel a, AirPodsDeviceViewModel b)
-    {
-        // Connected devices always come before disconnected ones
-        if (a.IsConnected != b.IsConnected)
-            return a.IsConnected;
-            
-        // If both connected or both disconnected, sort by signal strength
-        return a.SignalStrength > b.SignalStrength;
-    }
-
-    private void UpdateDevice(DeviceStateChange change)
-    {
-        // Find existing device by DeviceId (not Address - address can change!)
-        var existing = DiscoveredDevices.FirstOrDefault(d => d.DeviceId == change.DeviceId);
-        
-        if (existing == null)
+        // Marshal to UI thread to ensure thread-safe collection modification
+        _dispatcherQueue.TryEnqueue(() =>
         {
-            AddDevice(change);
-            return;
-        }
-
-        var oldIndex = DiscoveredDevices.IndexOf(existing);
-        var oldIsConnected = existing.IsConnected;
-        var oldSignalStrength = existing.SignalStrength;
-        
-        // Update properties (MVVM Toolkit handles change notifications)
-        existing.UpdateFrom(change.Device);
-
-        // Re-sort if connection state changed or signal strength changed significantly
-        var connectionStateChanged = existing.IsConnected != oldIsConnected;
-        const int SignalStrengthThreshold = 5;
-        var signalStrengthChanged = Math.Abs(existing.SignalStrength - oldSignalStrength) >= SignalStrengthThreshold;
-        
-        if (connectionStateChanged || signalStrengthChanged)
-        {
-            // Find new position
-            var newIndex = 0;
-            for (int i = 0; i < DiscoveredDevices.Count; i++)
+            // Update in discovered list - find by Product ID
+            var existing = DiscoveredDevices.FirstOrDefault(d => d.ProductId == device.ProductId);
+            if (existing != null)
             {
-                if (i == oldIndex) continue;
-                if (ShouldComeBefore(DiscoveredDevices[i], existing))
-                    newIndex++;
-                else
-                    break;
+                existing.UpdateFrom(device);
             }
-            
-            // Adjust for removal from old position
-            if (newIndex > oldIndex)
-                newIndex--;
-                
-            if (newIndex != oldIndex)
-            {
-                DiscoveredDevices.Move(oldIndex, newIndex);
-            }
-        }
+        });
     }
 
-    private void RemoveDevice(DeviceStateChange change)
+    private void OnCleanupTimerTick(DispatcherQueueTimer sender, object args)
     {
-        var existing = DiscoveredDevices.FirstOrDefault(d => d.DeviceId == change.DeviceId);
-        
-        if (existing != null)
-        {
-            existing.PropertyChanged -= OnDevicePropertyChanged;
-            existing.Cleanup();
-            DiscoveredDevices.Remove(existing);
-        }
-    }
+        var now = DateTime.Now;
+        var devicesToRemove = new System.Collections.Generic.List<AirPodsDeviceViewModel>();
 
-    private void OnDevicePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-    {
-        // Re-sort when connection state changes
-        if (e.PropertyName == nameof(AirPodsDeviceViewModel.IsConnected) && sender is AirPodsDeviceViewModel device)
-        {
-            var oldIndex = DiscoveredDevices.IndexOf(device);
-            if (oldIndex == -1) return;
-            
-            // Find new position based on connection state and signal strength
-            var newIndex = 0;
-            for (int i = 0; i < DiscoveredDevices.Count; i++)
-            {
-                if (i == oldIndex) continue;
-                if (ShouldComeBefore(DiscoveredDevices[i], device))
-                    newIndex++;
-                else
-                    break;
-            }
-            
-            // Adjust for removal from old position
-            if (newIndex > oldIndex)
-                newIndex--;
-                
-            if (newIndex != oldIndex)
-            {
-                DiscoveredDevices.Move(oldIndex, newIndex);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Refreshes the IsActive property for all devices to update the visual inactive state.
-    /// Device removal is handled by the AirPodsDeviceAggregator.
-    /// </summary>
-    private void RefreshIsActiveForAllDevices()
-    {
         foreach (var device in DiscoveredDevices)
         {
-            device.RefreshIsActive();
+            var timeSinceLastSeen = (now - device.LastSeen).TotalSeconds;
+            
+            if (timeSinceLastSeen >= 10)
+            {
+                devicesToRemove.Add(device);
+            }
+            else
+            {
+                device.RefreshIsActive();
+            }
         }
+
+        foreach (var device in devicesToRemove)
+        {
+            DiscoveredDevices.Remove(device);
+        }
+        
+        HasDiscoveredDevices = DiscoveredDevices.Count > 0;
     }
 
     public void Dispose()
     {
-        // Cleanup all devices
-        foreach (var device in DiscoveredDevices)
-        {
-            device.PropertyChanged -= OnDevicePropertyChanged;
-            device.Cleanup();
-        }
-        
-        _isActiveRefreshSubscription?.Dispose();
-        _deviceChangesSubscription?.Dispose();
-        _aggregator?.Dispose();
+        _cleanupTimer.Stop();
+        _discoveryService.DeviceDiscovered -= OnDeviceDiscovered;
+        _discoveryService.DeviceUpdated -= OnDeviceUpdated;
+        _discoveryService.Dispose();
     }
 }
-

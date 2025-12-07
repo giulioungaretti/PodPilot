@@ -84,7 +84,9 @@ public class AirPodsDeviceAggregatorTests
         var mockStream = new MockAdvertisementStream();
         using var aggregator = new AirPodsDeviceAggregator(
             mockStream,
-            deviceTimeout: TimeSpan.FromSeconds(15));
+            connectionMonitor: null,
+            deviceTimeout: TimeSpan.FromSeconds(15),
+            createConnectionMonitor: false);
 
         var receivedChanges = new List<DeviceStateChange>();
         var subscription = aggregator.DeviceChanges.Subscribe(receivedChanges.Add);

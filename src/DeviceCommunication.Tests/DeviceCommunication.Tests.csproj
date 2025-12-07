@@ -27,4 +27,8 @@
     <ProjectReference Include="..\DeviceCommunication\DeviceCommunication.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Device\" />
+  </ItemGroup>
+
 </Project>

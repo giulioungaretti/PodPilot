@@ -1,9 +1,10 @@
 ﻿using DeviceCommunication.Adapter;
 using DeviceCommunication.Advertisement;
 using DeviceCommunication.Apple;
-using DeviceCommunication.Core;
-using DeviceCommunication.Device;
+using DeviceCommunication.Diagnostics;
 using DeviceCommunication.Services;
+using Windows.Devices.Bluetooth;
+using Windows.Devices.Enumeration;
 
 namespace CLI;
 
@@ -20,8 +21,11 @@ class Program
             Console.WriteLine("2. scan for ble advertisements");
             Console.WriteLine("3. scan for airpods");
             Console.WriteLine("4. connect to bluetooth device");
-            Console.WriteLine("5. complete airpods monitor (legacy)");
-            Console.WriteLine("6. reactive airpods monitor (new architecture)");
+            Console.WriteLine("5. complete airpods monitor (basic)");
+            Console.WriteLine("6. reactive airpods monitor [LEGACY - battery signature grouping]");
+            Console.WriteLine("7. bluetooth diagnostics (debug connection issues)");
+            Console.WriteLine("8. resolve airpods paired address [LEGACY - multi-tier matching]");
+            Console.WriteLine("9. list all bluetooth devices with model info [RECOMMENDED]");
             Console.WriteLine("0. exit");
             Console.Write("\nchoice: ");
 
@@ -47,6 +51,15 @@ class Program
                     break;
                 case "6":
                     await Example6_ReactiveAirPodsMonitor();
+                    break;
+                case "7":
+                    await Example7_BluetoothDiagnostics();
+                    break;
+                case "8":
+                    await Example8_ResolveAirPodsAddress();
+                    break;
+                case "9":
+                    await Example9_ListDevicesWithModels();
                     break;
                 case "0":
                     return;
@@ -214,47 +227,44 @@ class Program
             Console.WriteLine($"\nconnecting to device at address: {address:X12}...");
 
             // connect to device with automatic disposal
-            using var device = await Device.FromBluetoothAddressAsync(address);
+            using var device = await BluetoothDevice.FromBluetoothAddressAsync(address);
+
+            if (device == null)
+            {
+                Console.WriteLine("error: device not found");
+                return;
+            }
+
+            // check if paired
+            var deviceInfo = await DeviceInformation.CreateFromIdAsync(device.DeviceId);
+            if (!deviceInfo.Pairing.IsPaired)
+            {
+                Console.WriteLine("error: device is not paired");
+                return;
+            }
 
             // subscribe to events
-            device.ConnectionStateChanged += (sender, state) =>
+            device.ConnectionStatusChanged += (sender, args) =>
             {
-                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] connection state: {state}");
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] connection state: {sender.ConnectionStatus}");
             };
 
-            device.NameChanged += (sender, name) =>
+            device.NameChanged += (sender, args) =>
             {
-                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] device renamed to: {name}");
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] device renamed to: {sender.Name}");
             };
 
             // display device info
             Console.WriteLine("\ndevice information:");
-            Console.WriteLine($"  name: {device.GetName()}");
-            Console.WriteLine($"  device id: {device.GetDeviceId()}");
-            Console.WriteLine($"  address: {device.GetAddress():X12}");
-            Console.WriteLine($"  connection state: {device.GetConnectionState()}");
-            Console.WriteLine($"  is connected: {device.IsConnected()}");
-
-            try
-            {
-                var vendorId = await device.GetVendorIdAsync();
-                var productId = await device.GetProductIdAsync();
-                Console.WriteLine($"  vendor id: {vendorId} (0x{vendorId:X4})");
-                Console.WriteLine($"  product id: {productId} (0x{productId:X4})");
-            }
-            catch (BluetoothException ex)
-            {
-                Console.WriteLine($"  could not retrieve vendor/product id: {ex.Message}");
-            }
+            Console.WriteLine($"  name: {device.Name}");
+            Console.WriteLine($"  device id: {device.DeviceId}");
+            Console.WriteLine($"  address: {device.BluetoothAddress:X12}");
+            Console.WriteLine($"  connection state: {device.ConnectionStatus}");
 
             Console.WriteLine("\nmonitoring device. press enter to stop...");
             Console.ReadLine();
             
             // device.Dispose() called automatically
-        }
-        catch (BluetoothException ex)
-        {
-            Console.WriteLine($"error: {ex.Message} ({ex.Error})");
         }
         catch (Exception ex)
         {
@@ -358,13 +368,20 @@ class Program
     }
 
     /// <summary>
-    /// example 6: reactive airpods monitor using new layered architecture
-    /// demonstrates proper separation of concerns with IObservable pattern
+    /// [LEGACY ARCHITECTURE] example 6: reactive airpods monitor using battery signature grouping
+    /// demonstrates the old complex grouping approach that has been replaced by Product ID-based identification
     /// </summary>
+    /// <remarks>
+    /// This example is kept for educational purposes to show the evolution from complex
+    /// battery signature grouping to simple Product ID-based identification.
+    /// For production code, use Example 9 approach (Product ID direct lookup).
+    /// </remarks>
     static async Task Example6_ReactiveAirPodsMonitor()
     {
-        Console.WriteLine("=== reactive airpods monitor (new architecture) ===\n");
-        Console.WriteLine("this example demonstrates the new layered architecture:");
+        Console.WriteLine("=== reactive airpods monitor [LEGACY ARCHITECTURE] ===");
+        Console.WriteLine("\n⚠️  This example demonstrates the OLD approach using battery signature grouping.");
+        Console.WriteLine("For new code, see Example 9 which uses Product ID-based identification.\n");
+        Console.WriteLine("\nthis example demonstrates the legacy layered architecture:");
         Console.WriteLine("  layer 1: IAdvertisementStream - raw BLE advertisements");
         Console.WriteLine("  layer 2: AirPodsDeviceAggregator - grouping & deduplication");
         Console.WriteLine("  layer 3: IObservable subscription - reactive updates\n");
@@ -461,5 +478,282 @@ class Program
         await tcs.Task;
 
         Console.WriteLine("\nmonitor stopped.");
+    }
+
+    /// <summary>
+    /// example 7: bluetooth diagnostics to debug connection issues
+    /// shows all paired devices and their actual connection status from windows
+    /// </summary>
+    static async Task Example7_BluetoothDiagnostics()
+    {
+        Console.WriteLine("=== bluetooth diagnostics ===\n");
+        Console.WriteLine("generating diagnostic report...\n");
+
+        // Generate and display the full diagnostic report
+        var report = await BluetoothDiagnostics.GenerateDiagnosticReportAsync();
+        Console.WriteLine(report);
+
+        // Interactive mode to monitor connection changes
+        Console.WriteLine("\n=== live connection monitoring ===");
+        Console.WriteLine("monitoring paired devices for connection changes...");
+        Console.WriteLine("press enter to stop.\n");
+
+        var cts = new CancellationTokenSource();
+        var monitorTask = Task.Run(async () =>
+        {
+            var lastConnectionStates = new Dictionary<string, bool>();
+
+            while (!cts.Token.IsCancellationRequested)
+            {
+                try
+                {
+                    var devices = await BluetoothDiagnostics.GetPairedClassicDevicesAsync();
+                    
+                    foreach (var device in devices)
+                    {
+                        var key = device.Name;
+                        var isConnected = device.IsConnected;
+
+                        if (lastConnectionStates.TryGetValue(key, out var wasConnected))
+                        {
+                            if (wasConnected != isConnected)
+                            {
+                                var status = isConnected ? "CONNECTED" : "DISCONNECTED";
+                                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] {device.Name}: {status}");
+                            }
+                        }
+                        else
+                        {
+                            // First time seeing this device
+                            var status = isConnected ? "CONNECTED" : "disconnected";
+                            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] {device.Name}: initial state = {status}");
+                        }
+
+                        lastConnectionStates[key] = isConnected;
+                    }
+
+                    await Task.Delay(1000, cts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"[{DateTime.Now:HH:mm:ss}] error: {ex.Message}");
+                    await Task.Delay(2000, cts.Token);
+                }
+            }
+        }, cts.Token);
+
+        Console.ReadLine();
+        await cts.CancelAsync();
+
+        try
+        {
+            await monitorTask;
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected
+        }
+
+        Console.WriteLine("\ndiagnostics stopped.");
+    }
+
+    /// <summary>
+    /// [LEGACY ARCHITECTURE] example 8: demonstrate address resolution for airpods
+    /// shows how paired device matching works using OLD multi-tier matching strategy
+    /// </summary>
+    /// <remarks>
+    /// This example is kept for educational purposes to show why the old approach was complex.
+    /// The multi-tier matching (name-based, single audio device, connected device) has been
+    /// replaced by simple Product ID-based identification.
+    /// For production code, use Example 9 approach (Product ID direct lookup via GetProductIdAsync).
+    /// </remarks>
+    static async Task Example8_ResolveAirPodsAddress()
+    {
+        Console.WriteLine("=== airpods address resolution [LEGACY ARCHITECTURE] ===");
+        Console.WriteLine("\n⚠️  This example demonstrates the OLD multi-tier matching approach.");
+        Console.WriteLine("For new code, see Example 9 which uses Product ID-based identification.\n");
+        Console.WriteLine("\nthis example demonstrates the legacy multi-tier device matching:");
+        Console.WriteLine("  tier 1: name-based matching (highest confidence)");
+        Console.WriteLine("  tier 2: single audio device fallback");
+        Console.WriteLine("  tier 3: connected audio device preference\n");
+
+        using var connectionMonitor = new BluetoothConnectionMonitor();
+        connectionMonitor.Start();
+        
+        // Wait a moment for the monitor to enumerate paired devices
+        await Task.Delay(1000);
+        
+        Console.WriteLine("paired devices found by monitor:");
+        var pairedDevices = connectionMonitor.GetAllPairedDevices();
+        if (pairedDevices.Count == 0)
+        {
+            Console.WriteLine("  (none)");
+        }
+        else
+        {
+            foreach (var device in pairedDevices)
+            {
+                var status = device.IsConnected ? "CONNECTED" : "disconnected";
+                Console.WriteLine($"  - {device.Name}: {device.Address:X12} ({status}) [class: {device.DeviceClass}]");
+            }
+        }
+        Console.WriteLine();
+
+        using var watcher = new AdvertisementWatcher();
+        var resolvedDevices = new HashSet<string>();
+
+        watcher.AdvertisementReceived += (sender, data) =>
+        {
+            // filter for apple manufacturer data
+            if (!data.ManufacturerData.TryGetValue(AppleConstants.VENDOR_ID, out var appleData))
+                return;
+
+            // try to parse proximity pairing message
+            var message = ProximityPairingMessage.FromManufacturerData(appleData);
+            if (!message.HasValue) return;
+            
+            var airPods = message.Value;
+            var model = airPods.GetModel();
+
+            // filter out unknown models
+            if (model == AppleDeviceModel.Unknown) return;
+
+            var modelName = model switch
+            {
+                AppleDeviceModel.AirPods1 => "AirPods (1st generation)",
+                AppleDeviceModel.AirPods2 => "AirPods (2nd generation)",
+                AppleDeviceModel.AirPods3 => "AirPods (3rd generation)",
+                AppleDeviceModel.AirPodsPro => "AirPods Pro",
+                AppleDeviceModel.AirPodsPro2 => "AirPods Pro (2nd generation)",
+                AppleDeviceModel.AirPodsPro2UsbC => "AirPods Pro (2nd gen, USB-C)",
+                AppleDeviceModel.AirPodsMax => "AirPods Max",
+                AppleDeviceModel.BeatsFitPro => "Beats Fit Pro",
+                _ => "Unknown AirPods"
+            };
+
+            // only resolve each model once
+            if (!resolvedDevices.Add(modelName))
+                return;
+
+            Console.WriteLine($"🎧 {modelName} detected!");
+            Console.WriteLine($"  advertisement address: {data.Address:X12}");
+            Console.WriteLine($"  matching to paired devices...");
+
+            // Use the matcher to find the paired device
+            var currentPairedDevices = connectionMonitor.GetAllPairedDevices();
+            var match = PairedDeviceMatcher.FindBestMatch(modelName, currentPairedDevices);
+            
+            if (match is not null)
+            {
+                Console.WriteLine($"  ✓ matched to: {match.PairedName}");
+                Console.WriteLine($"  paired address: {match.PairedAddress:X12}");
+                Console.WriteLine($"  match tier: {match.MatchTier}");
+                Console.WriteLine($"  match score: {match.Score}");
+                Console.WriteLine($"  is connected: {match.IsConnected}");
+            }
+            else
+            {
+                Console.WriteLine($"  ⚠ no paired device found matching '{modelName}'");
+                Console.WriteLine($"  → multiple audio devices paired? connect the one you want to use.");
+                Console.WriteLine($"  → or pair the device in Windows Settings first.");
+            }
+
+            Console.WriteLine();
+        };
+
+        watcher.Start();
+        Console.WriteLine("scanning for airpods. open your airpods case nearby.");
+        Console.WriteLine("press enter to stop...\n");
+        Console.ReadLine();
+
+        Console.WriteLine($"\nresolved {resolvedDevices.Count} device(s)");
+    }
+
+    /// <summary>
+    /// example 9: list all bluetooth devices and display their model information
+    /// shows product id to apple device model mapping for paired devices
+    /// </summary>
+    static async Task Example9_ListDevicesWithModels()
+    {
+        Console.WriteLine("=== list bluetooth devices with model info ===\n");
+        Console.WriteLine("enumerating all paired bluetooth devices...\n");
+
+        var devices = await BluetoothDiagnostics.GetPairedClassicDevicesAsync();
+
+        if (devices.Count == 0)
+        {
+            Console.WriteLine("no paired bluetooth devices found.");
+            return;
+        }
+
+        Console.WriteLine($"found {devices.Count} paired device(s):\n");
+
+        foreach (var deviceInfo in devices)
+        {
+            var connectionStatus = deviceInfo.IsConnected ? "CONNECTED" : "disconnected";
+            Console.WriteLine($"📱 {deviceInfo.Name}");
+            Console.WriteLine($"  address: {deviceInfo.BluetoothAddress:X12}");
+            Console.WriteLine($"  status: {connectionStatus}");
+            Console.WriteLine($"  device class: {deviceInfo.DeviceClass}");
+
+            try
+            {
+                using var device = await DeviceCommunication.Device.Device.FromDeviceIdAsync(deviceInfo.Id);
+                
+                // Try to get vendor and product ID
+                try
+                {
+                    var vendorId = await device.GetVendorIdAsync();
+                    var productId = await device.GetProductIdAsync();
+                    
+                    Console.WriteLine($"  vendor id: 0x{vendorId:X4}");
+                    Console.WriteLine($"  product id: 0x{productId:X4}");
+
+                    // Check if it's an Apple device (Vendor ID 0x004C = 76)
+                    if (vendorId == 0x004C || vendorId == 76)
+                    {
+                        var model = AppleDeviceModelHelper.GetModel(productId);
+                        var modelName = GetAppleDeviceModelName(model);
+                        Console.WriteLine($"  🍎 apple model: {modelName}");
+                    }
+                }
+                catch
+                {
+                    Console.WriteLine($"  vendor/product id: not available");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"  error querying device: {ex.Message}");
+            }
+
+            Console.WriteLine();
+        }
+
+        Console.WriteLine("listing complete.");
+    }
+
+    /// <summary>
+    /// converts AppleDeviceModel enum to friendly display name
+    /// </summary>
+    static string GetAppleDeviceModelName(AppleDeviceModel model)
+    {
+        return model switch
+        {
+            AppleDeviceModel.AirPods1 => "AirPods (1st generation)",
+            AppleDeviceModel.AirPods2 => "AirPods (2nd generation)",
+            AppleDeviceModel.AirPods3 => "AirPods (3rd generation)",
+            AppleDeviceModel.AirPodsPro => "AirPods Pro",
+            AppleDeviceModel.AirPodsPro2 => "AirPods Pro (2nd generation)",
+            AppleDeviceModel.AirPodsPro2UsbC => "AirPods Pro (2nd gen, USB-C)",
+            AppleDeviceModel.AirPodsMax => "AirPods Max",
+            AppleDeviceModel.BeatsFitPro => "Beats Fit Pro",
+            AppleDeviceModel.Unknown => "Unknown Apple Device",
+            _ => "Unknown"
+        };
     }
 }

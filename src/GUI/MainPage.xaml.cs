@@ -1,6 +1,5 @@
 using Microsoft.UI.Xaml.Controls;
 using GUI.ViewModels;
-using DeviceCommunication.Advertisement;
 using DeviceCommunication.Services;
 
 namespace GUI;
@@ -16,12 +15,15 @@ public sealed partial class MainPage : Page
     {
         InitializeComponent();
 
-        // Initialize services with new layered architecture
-        var advertisementStream = new AdvertisementStream();
-        var aggregator = new AirPodsDeviceAggregator(advertisementStream);
+        // Initialize services with simplified Product ID-based discovery
+        var discoveryService = new SimpleAirPodsDiscoveryService();
+        var connectionService = new BluetoothConnectionService();
 
-        // Initialize ViewModel
-        ViewModel = new MainPageViewModel(aggregator);
+        // Initialize ViewModel with dependencies
+        ViewModel = new MainPageViewModel(
+            discoveryService, 
+            connectionService,
+            DispatcherQueue);
 
         // Initialize when page loads
         Loaded += (_, _) => ViewModel.Initialize();

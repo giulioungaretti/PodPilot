@@ -1,5 +1,6 @@
 // Bluetooth device management
 
+using DeviceCommunication.Apple;
 using DeviceCommunication.Core;
 using Windows.Devices.Bluetooth;
 using Windows.Devices.Enumeration;
@@ -292,6 +293,13 @@ public class Device : IDisposable
         if (info.Properties.TryGetValue(PROPERTY_BLUETOOTH_PRODUCT_ID, out var value))
             return (ushort)value;
         throw new BluetoothException(BluetoothError.PropertyNotFound);
+    }
+
+    // gets the apple device model enum by parsing the ProductIdAsync
+    public async Task<AppleDeviceModel> GetAppleDeviceModelAsync()
+    {
+        var productId = await GetProductIdAsync();
+        return AppleDeviceModelHelper.GetModel(productId);
     }
 
     /// <summary>

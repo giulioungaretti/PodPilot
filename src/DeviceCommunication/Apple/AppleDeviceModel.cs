@@ -58,4 +58,42 @@ namespace DeviceCommunication.Apple
         /// </summary>
         Unknown
     }
+
+    /// <summary>
+    /// Provides helper methods for AppleDeviceModel.
+    /// </summary>
+    public static class AppleDeviceModelHelper
+    {
+        /// <summary>
+        /// Gets the device model from the advertisement.
+        /// </summary>
+        /// <returns>The <see cref="AppleDeviceModel"/> that sent this advertisement.</returns>
+        /// <remarks>
+        /// <para>
+        /// The model ID is stored as a 16-bit big-endian value in the wire protocol (bytes 3-4).
+        /// For example, AirPods Pro 2 has model ID 0x2014, transmitted as bytes [0x14, 0x20] 
+        /// (low byte first in memory due to little-endian struct layout).
+        /// </para>
+        /// <para>
+        /// When the struct reads these bytes on a little-endian system (Windows), the StructLayout
+        /// places byte[3]=0x14 at the low byte position and byte[4]=0x20 at the high byte position,
+        /// which naturally forms the ushort value 0x2014 in memory.
+        /// </para>
+        /// </remarks>
+        public static AppleDeviceModel GetModel(ushort modelId)
+        {
+            return modelId switch
+            {
+                0x2002 => AppleDeviceModel.AirPods1,
+                0x200F => AppleDeviceModel.AirPods2,
+                0x2013 => AppleDeviceModel.AirPods3,
+                0x200E => AppleDeviceModel.AirPodsPro,
+                0x2014 => AppleDeviceModel.AirPodsPro2,
+                0x2024 => AppleDeviceModel.AirPodsPro2UsbC,
+                0x200A => AppleDeviceModel.AirPodsMax,
+                0x2012 => AppleDeviceModel.BeatsFitPro,
+                _ => AppleDeviceModel.Unknown
+            };
+        }
+    }
 }

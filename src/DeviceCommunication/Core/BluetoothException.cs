@@ -45,6 +45,7 @@ namespace DeviceCommunication.Core
         private static string GetErrorMessage(BluetoothError error) => error switch
         {
             BluetoothError.DeviceNotFound => "Bluetooth device was not found",
+            BluetoothError.DeviceNotPaired => "Bluetooth device is not paired with this system",
             BluetoothError.PropertyNotFound => "Device property could not be retrieved",
             BluetoothError.WindowsError => "Windows API error occurred",
             _ => "Unknown Bluetooth error"

@@ -15,6 +15,11 @@ namespace DeviceCommunication.Core
         DeviceNotFound,
 
         /// <summary>
+        /// The device was found but is not paired with the system.
+        /// </summary>
+        DeviceNotPaired,
+
+        /// <summary>
         /// A required device property could not be retrieved.
         /// </summary>
         PropertyNotFound,
