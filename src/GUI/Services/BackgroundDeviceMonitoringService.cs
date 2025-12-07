@@ -19,12 +19,13 @@ internal sealed class BackgroundDeviceMonitoringService : IDisposable
 
     public event EventHandler<AirPodsDeviceInfo>? PairedDeviceDetected;
 
-    public BackgroundDeviceMonitoringService(DispatcherQueue dispatcherQueue)
+    public BackgroundDeviceMonitoringService(DispatcherQueue dispatcherQueue, IAirPodsDiscoveryService discoveryService)
     {
         ArgumentNullException.ThrowIfNull(dispatcherQueue);
+        ArgumentNullException.ThrowIfNull(discoveryService);
         
         _dispatcherQueue = dispatcherQueue;
-        _discoveryService = new SimpleAirPodsDiscoveryService();
+        _discoveryService = discoveryService;
         _deviceStates = new Dictionary<string, DeviceConnectionState>();
         
         _discoveryService.DeviceDiscovered += OnDeviceDiscovered;
@@ -132,7 +133,7 @@ internal sealed class BackgroundDeviceMonitoringService : IDisposable
 
         _discoveryService.DeviceDiscovered -= OnDeviceDiscovered;
         _discoveryService.DeviceUpdated -= OnDeviceUpdated;
-        _discoveryService.Dispose();
+        // Note: Discovery service is disposed by the owner (App.xaml.cs)
         _deviceStates.Clear();
         _disposed = true;
     }
