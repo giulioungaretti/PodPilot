@@ -1,5 +1,6 @@
 ﻿using System;
 using DeviceCommunication.Services;
+using DeviceCommunication.Advertisement;
 using GUI.Services;
 using GUI.ViewModels;
 using GUI.Windows;
@@ -47,8 +48,10 @@ public partial class App : Application
         services.AddSingleton(dispatcherQueue);
 
         // Low-level services (no dependencies on other services)
+        services.AddSingleton<IAdvertisementWatcher, AdvertisementWatcher>();
         services.AddSingleton<IPairedDeviceLookupService, PairedDeviceLookupService>();
         services.AddSingleton<IGlobalMediaController, GlobalMediaController>();
+        services.AddSingleton<IDefaultAudioOutputMonitorService, DefaultAudioOutputMonitorService>();
 
         // Mid-level services
         services.AddSingleton<IAirPodsDiscoveryService, SimpleAirPodsDiscoveryService>();
@@ -85,6 +88,10 @@ public partial class App : Application
         // Initialize ear detection service for auto-pause/resume
         var earDetectionService = Services.GetRequiredService<EarDetectionService>();
         await earDetectionService.InitializeAsync();
+
+        // Start default audio output monitoring
+        var audioOutputMonitor = Services.GetRequiredService<IDefaultAudioOutputMonitorService>();
+        audioOutputMonitor.Start();
 
         _mainWindow.Activate();
     }

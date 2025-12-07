@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DeviceCommunication.Models;
@@ -16,8 +17,10 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
 {
     private readonly IAirPodsDiscoveryService _discoveryService;
     private readonly IBluetoothConnectionService _connectionService;
+    private readonly IDefaultAudioOutputMonitorService _audioOutputMonitor;
     private readonly DispatcherQueue _dispatcherQueue;
     private readonly DispatcherQueueTimer _cleanupTimer;
+    private bool _isProcessingCleanup;
 
     [ObservableProperty]
     private bool _isScanning;
@@ -30,18 +33,21 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
     public MainPageViewModel(
         IAirPodsDiscoveryService discoveryService,
         IBluetoothConnectionService connectionService,
+        IDefaultAudioOutputMonitorService audioOutputMonitor,
         DispatcherQueue dispatcherQueue)
     {
         _discoveryService = discoveryService;
         _connectionService = connectionService;
+        _audioOutputMonitor = audioOutputMonitor;
         _dispatcherQueue = dispatcherQueue;
         DiscoveredDevices = new ObservableCollection<AirPodsDeviceViewModel>();
 
         _discoveryService.DeviceDiscovered += OnDeviceDiscovered;
         _discoveryService.DeviceUpdated += OnDeviceUpdated;
+        _audioOutputMonitor.DefaultAudioOutputChanged += OnDefaultAudioOutputChanged;
 
         _cleanupTimer = _dispatcherQueue.CreateTimer();
-        _cleanupTimer.Interval = TimeSpan.FromSeconds(1);
+        _cleanupTimer.Interval = TimeSpan.FromSeconds(5);
         _cleanupTimer.Tick += OnCleanupTimerTick;
     }
 
@@ -92,31 +98,56 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
 
     private void OnCleanupTimerTick(DispatcherQueueTimer sender, object args)
     {
-        var now = DateTime.Now;
-        var devicesToRemove = new System.Collections.Generic.List<AirPodsDeviceViewModel>();
-
-        foreach (var device in DiscoveredDevices)
+        if (_isProcessingCleanup)
         {
-            var timeSinceLastSeen = (now - device.LastSeen).TotalSeconds;
-            
-            if (timeSinceLastSeen >= 10)
-            {
-                devicesToRemove.Add(device);
-            }
-            else
-            {
-                device.RefreshIsActive();
-                // Refresh audio output status periodically (fire and forget since we're in a timer)
-                _ = device.RefreshDefaultAudioOutputStatusAsync();
-            }
-        }
-
-        foreach (var device in devicesToRemove)
-        {
-            DiscoveredDevices.Remove(device);
+            return;
         }
         
-        HasDiscoveredDevices = DiscoveredDevices.Count > 0;
+        _isProcessingCleanup = true;
+        
+        try
+        {
+            var now = DateTime.Now;
+            var devicesToRemove = new System.Collections.Generic.List<AirPodsDeviceViewModel>();
+
+            foreach (var device in DiscoveredDevices)
+            {
+                var timeSinceLastSeen = (now - device.LastSeen).TotalSeconds;
+                
+                if (timeSinceLastSeen >= 10)
+                {
+                    devicesToRemove.Add(device);
+                }
+                else
+                {
+                    device.RefreshIsActive();
+                }
+            }
+
+            foreach (var device in devicesToRemove)
+            {
+                DiscoveredDevices.Remove(device);
+            }
+            
+            HasDiscoveredDevices = DiscoveredDevices.Count > 0;
+        }
+        finally
+        {
+            _isProcessingCleanup = false;
+        }
+    }
+
+    private void OnDefaultAudioOutputChanged(object? sender, DefaultAudioOutputChangedEventArgs args)
+    {
+        // Marshal to UI thread
+        _dispatcherQueue.TryEnqueue(() =>
+        {
+            // Refresh the audio output status for all devices
+            foreach (var device in DiscoveredDevices)
+            {
+                _ = device.RefreshDefaultAudioOutputStatusAsync();
+            }
+        });
     }
 
     public void Dispose()
@@ -124,6 +155,7 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
         _cleanupTimer.Stop();
         _discoveryService.DeviceDiscovered -= OnDeviceDiscovered;
         _discoveryService.DeviceUpdated -= OnDeviceUpdated;
+        _audioOutputMonitor.DefaultAudioOutputChanged -= OnDefaultAudioOutputChanged;
         _discoveryService.Dispose();
     }
 }
