@@ -33,7 +33,20 @@ public record AirPodsDeviceInfo
     public bool IsLeftInEar { get; init; }
     public bool IsRightInEar { get; init; }
     public bool IsLidOpen { get; init; }
+    
+    /// <summary>
+    /// Indicates whether both AirPods are currently in the charging case.
+    /// When true, connection should not be attempted as they are not in use.
+    /// </summary>
+    public bool IsBothPodsInCase { get; init; }
+    
     public bool IsConnected { get; init; }
     public int SignalStrength { get; init; }
     public DateTime LastSeen { get; init; }
+    
+    /// <summary>
+    /// Determines if at least one AirPod is out of the case and ready for connection.
+    /// </summary>
+    /// <returns>True if at least one pod is out of the case (either in ear or just out).</returns>
+    public bool IsReadyForConnection => !IsBothPodsInCase;
 }
