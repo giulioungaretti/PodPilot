@@ -11,7 +11,7 @@ namespace GUI.Windows;
 /// <summary>
 /// Small notification window that displays when a paired AirPods device is detected.
 /// </summary>
-public sealed partial class NotificationWindow : Window
+public sealed partial class NotificationWindow : WinUIEx.WindowEx
 {
     private readonly AirPodsDeviceViewModel _deviceViewModel;
 
@@ -21,20 +21,23 @@ public sealed partial class NotificationWindow : Window
     {
         InitializeComponent();
 
-        // Configure window appearance using WinUIEx extensions
-        this.SetWindowSize(450, 250);
-        this.CenterOnScreen();
-        this.SetIsAlwaysOnTop(true);
+        // Configure window size using WindowEx properties
+        Width = 450;
+        Height = 300;
         
-        // Remove title bar and borders completely using OverlappedPresenter
-        var presenter = (OverlappedPresenter)AppWindow.Presenter;
-        presenter.SetBorderAndTitleBar(false, false);
-        presenter.IsMinimizable = false;
-        presenter.IsMaximizable = false;
-        presenter.IsResizable = false;
+        // Configure window behavior using WindowEx properties
+        IsAlwaysOnTop = true;
+        IsResizable = false;
+        IsMinimizable = false;
+        IsMaximizable = false;
+        IsTitleBarVisible = false;
+        IsShownInSwitchers = false;
         
-        // Hide from task switchers (Alt+Tab)
-        AppWindow.IsShownInSwitchers = false;
+        // Position window after it's activated
+        Activated += OnFirstActivated;
+        
+        // Dismiss window when user clicks elsewhere
+        Activated += OnWindowActivated;
 
         // Create device view model and bind to card
         _deviceViewModel = new AirPodsDeviceViewModel(deviceInfo, connectionService);
@@ -50,4 +53,33 @@ public sealed partial class NotificationWindow : Window
         };
         timer.Start();
     }
+
+    private void OnFirstActivated(object sender, WindowActivatedEventArgs e)
+    {
+        // Unsubscribe - only need to position once
+        Activated -= OnFirstActivated;
+        
+        // Position window at center-bottom of screen, just above taskbar
+        var displayArea = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary);
+        var workArea = displayArea.WorkArea; // WorkArea excludes taskbar area
+        
+        // Get actual window size in physical pixels (accounts for DPI scaling)
+        var windowWidth = AppWindow.Size.Width;
+        var windowHeight = AppWindow.Size.Height;
+        
+        var x = workArea.X + (workArea.Width - windowWidth) / 2; // Center horizontally
+        var y = workArea.Y + workArea.Height - windowHeight - 20; // 20px margin above taskbar
+        
+        this.Move(x, y);
+    }
+
+    private void OnWindowActivated(object sender, WindowActivatedEventArgs e)
+    {
+        // Close window when it loses focus (user clicks elsewhere)
+        if (e.WindowActivationState == WindowActivationState.Deactivated)
+        {
+            Close();
+        }
+    }
 }
+
