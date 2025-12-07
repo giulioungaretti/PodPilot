@@ -1,3 +1,4 @@
+using DeviceCommunication.Advertisement;
 using DeviceCommunication.Models;
 using DeviceCommunication.Services;
 
@@ -19,7 +20,9 @@ class Program
         Console.WriteLine("This CLI automatically connects when pods are out of the case.\n");
         Console.WriteLine("Scanning for AirPods...\n");
 
-        using var discoveryService = new SimpleAirPodsDiscoveryService();
+        using var advertisementWatcher = new AdvertisementWatcher();
+        var pairedDeviceLookupService = new PairedDeviceLookupService();
+        using var discoveryService = new SimpleAirPodsDiscoveryService(advertisementWatcher, pairedDeviceLookupService);
         using var connectionService = new BluetoothConnectionService();
 
         // Subscribe to discovery events

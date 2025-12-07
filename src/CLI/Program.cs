@@ -52,9 +52,6 @@ class Program
                 case "7":
                     await Example7_BluetoothDiagnostics();
                     break;
-                case "8":
-                    await Example8_ResolveAirPodsAddress();
-                    break;
                 case "9":
                     await Example9_ListDevicesWithModels();
                     break;
@@ -443,118 +440,6 @@ class Program
         }
 
         Console.WriteLine("\ndiagnostics stopped.");
-    }
-
-    /// <summary>
-    /// [LEGACY ARCHITECTURE] example 8: demonstrate address resolution for airpods
-    /// shows how paired device matching works using OLD multi-tier matching strategy
-    /// </summary>
-    /// <remarks>
-    /// This example is kept for educational purposes to show why the old approach was complex.
-    /// The multi-tier matching (name-based, single audio device, connected device) has been
-    /// replaced by simple Product ID-based identification.
-    /// For production code, use Example 9 approach (Product ID direct lookup via GetProductIdAsync).
-    /// </remarks>
-    static async Task Example8_ResolveAirPodsAddress()
-    {
-        Console.WriteLine("=== airpods address resolution [LEGACY ARCHITECTURE] ===");
-        Console.WriteLine("\n⚠️  This example demonstrates the OLD multi-tier matching approach.");
-        Console.WriteLine("For new code, see Example 9 which uses Product ID-based identification.\n");
-        Console.WriteLine("\nthis example demonstrates the legacy multi-tier device matching:");
-        Console.WriteLine("  tier 1: name-based matching (highest confidence)");
-        Console.WriteLine("  tier 2: single audio device fallback");
-        Console.WriteLine("  tier 3: connected audio device preference\n");
-
-        using var connectionMonitor = new BluetoothConnectionMonitor();
-        connectionMonitor.Start();
-        
-        // Wait a moment for the monitor to enumerate paired devices
-        await Task.Delay(1000);
-        
-        Console.WriteLine("paired devices found by monitor:");
-        var pairedDevices = connectionMonitor.GetAllPairedDevices();
-        if (pairedDevices.Count == 0)
-        {
-            Console.WriteLine("  (none)");
-        }
-        else
-        {
-            foreach (var device in pairedDevices)
-            {
-                var status = device.IsConnected ? "CONNECTED" : "disconnected";
-                Console.WriteLine($"  - {device.Name}: {device.Address:X12} ({status}) [class: {device.DeviceClass}]");
-            }
-        }
-        Console.WriteLine();
-
-        using var watcher = new AdvertisementWatcher();
-        var resolvedDevices = new HashSet<string>();
-
-        watcher.AdvertisementReceived += (sender, data) =>
-        {
-            // filter for apple manufacturer data
-            if (!data.ManufacturerData.TryGetValue(AppleConstants.VENDOR_ID, out var appleData))
-                return;
-
-            // try to parse proximity pairing message
-            var message = ProximityPairingMessage.FromManufacturerData(appleData);
-            if (!message.HasValue) return;
-            
-            var airPods = message.Value;
-            var model = airPods.GetModel();
-
-            // filter out unknown models
-            if (model == AppleDeviceModel.Unknown) return;
-
-            var modelName = model switch
-            {
-                AppleDeviceModel.AirPods1 => "AirPods (1st generation)",
-                AppleDeviceModel.AirPods2 => "AirPods (2nd generation)",
-                AppleDeviceModel.AirPods3 => "AirPods (3rd generation)",
-                AppleDeviceModel.AirPodsPro => "AirPods Pro",
-                AppleDeviceModel.AirPodsPro2 => "AirPods Pro (2nd generation)",
-                AppleDeviceModel.AirPodsPro2UsbC => "AirPods Pro (2nd gen, USB-C)",
-                AppleDeviceModel.AirPodsMax => "AirPods Max",
-                AppleDeviceModel.BeatsFitPro => "Beats Fit Pro",
-                _ => "Unknown AirPods"
-            };
-
-            // only resolve each model once
-            if (!resolvedDevices.Add(modelName))
-                return;
-
-            Console.WriteLine($"🎧 {modelName} detected!");
-            Console.WriteLine($"  advertisement address: {data.Address:X12}");
-            Console.WriteLine($"  matching to paired devices...");
-
-            // Use the matcher to find the paired device
-            var currentPairedDevices = connectionMonitor.GetAllPairedDevices();
-            var match = PairedDeviceMatcher.FindBestMatch(modelName, currentPairedDevices);
-            
-            if (match is not null)
-            {
-                Console.WriteLine($"  ✓ matched to: {match.PairedName}");
-                Console.WriteLine($"  paired address: {match.PairedAddress:X12}");
-                Console.WriteLine($"  match tier: {match.MatchTier}");
-                Console.WriteLine($"  match score: {match.Score}");
-                Console.WriteLine($"  is connected: {match.IsConnected}");
-            }
-            else
-            {
-                Console.WriteLine($"  ⚠ no paired device found matching '{modelName}'");
-                Console.WriteLine($"  → multiple audio devices paired? connect the one you want to use.");
-                Console.WriteLine($"  → or pair the device in Windows Settings first.");
-            }
-
-            Console.WriteLine();
-        };
-
-        watcher.Start();
-        Console.WriteLine("scanning for airpods. open your airpods case nearby.");
-        Console.WriteLine("press enter to stop...\n");
-        Console.ReadLine();
-
-        Console.WriteLine($"\nresolved {resolvedDevices.Count} device(s)");
     }
 
     /// <summary>

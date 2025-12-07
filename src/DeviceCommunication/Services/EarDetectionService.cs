@@ -185,6 +185,5 @@ public sealed class EarDetectionService : IDisposable
         _disposed = true;
 
         _discoveryService.DeviceUpdated -= OnDeviceUpdated;
-        // Note: Do NOT dispose _mediaController - it's owned by the DI container
     }
 }

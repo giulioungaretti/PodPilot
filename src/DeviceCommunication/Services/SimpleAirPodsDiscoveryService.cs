@@ -13,20 +13,12 @@ public class SimpleAirPodsDiscoveryService : IAirPodsDiscoveryService
 {
     private readonly IAdvertisementWatcher _watcher;
     private readonly IPairedDeviceLookupService _pairedDeviceLookup;
-    private readonly Dictionary<ushort, DeviceState> _devicesByProductId;
+    private readonly Dictionary<ushort, AirPodsDeviceInfo> _devicesByProductId;
     private readonly TimeSpan _deviceTimeout = TimeSpan.FromMinutes(5);
     private bool _disposed;
 
     public event EventHandler<AirPodsDeviceInfo>? DeviceDiscovered;
     public event EventHandler<AirPodsDeviceInfo>? DeviceUpdated;
-
-    /// <summary>
-    /// Creates a new instance with default dependencies.
-    /// </summary>
-    public SimpleAirPodsDiscoveryService()
-        : this(new AdvertisementWatcher(), new PairedDeviceLookupService())
-    {
-    }
 
     /// <summary>
     /// Creates a new instance with the specified dependencies.
@@ -37,7 +29,7 @@ public class SimpleAirPodsDiscoveryService : IAirPodsDiscoveryService
     {
         _watcher = watcher ?? throw new ArgumentNullException(nameof(watcher));
         _pairedDeviceLookup = pairedDeviceLookup ?? throw new ArgumentNullException(nameof(pairedDeviceLookup));
-        _devicesByProductId = new Dictionary<ushort, DeviceState>();
+        _devicesByProductId = new Dictionary<ushort, AirPodsDeviceInfo>();
         _watcher.AdvertisementReceived += OnAdvertisementReceived;
     }
 
@@ -56,12 +48,9 @@ public class SimpleAirPodsDiscoveryService : IAirPodsDiscoveryService
     public IReadOnlyList<AirPodsDeviceInfo> GetDiscoveredDevices()
     {
         var now = DateTime.Now;
-        var activeDevices = _devicesByProductId.Values
-            .Where(state => now - state.LastSeen <= _deviceTimeout)
-            .Select(state => state.DeviceInfo)
+        return _devicesByProductId.Values
+            .Where(device => now - device.LastSeen <= _deviceTimeout)
             .ToList();
-
-        return activeDevices;
     }
 
     private async void OnAdvertisementReceived(object? sender, AdvertisementReceivedData data)
@@ -132,15 +121,10 @@ public class SimpleAirPodsDiscoveryService : IAirPodsDiscoveryService
             IsConnected = pairedDevice?.IsConnected ?? false
         };
 
-        _devicesByProductId[productId.Value] = new DeviceState
-        {
-            DeviceInfo = deviceInfo,
-            LastSeen = DateTime.Now
-        };
+        _devicesByProductId[productId.Value] = deviceInfo;
 
         if (isNewDevice)
         {
-            LogDebug("Raising DeviceDiscovered event");
             DeviceDiscovered?.Invoke(this, deviceInfo);
         }
         else
@@ -161,11 +145,5 @@ public class SimpleAirPodsDiscoveryService : IAirPodsDiscoveryService
         _watcher.Dispose();
         _devicesByProductId.Clear();
         _disposed = true;
-    }
-
-    private sealed class DeviceState
-    {
-        public required AirPodsDeviceInfo DeviceInfo { get; init; }
-        public DateTime LastSeen { get; set; }
     }
 }
