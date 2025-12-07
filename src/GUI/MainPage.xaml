@@ -17,13 +17,7 @@
         <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
     </Page.Resources>
 
-    <Grid x:Name="PageRoot">
-        <Grid.Background>
-            <AcrylicBrush TintColor="{ThemeResource SolidBackgroundFillColorBase}"
-                          TintOpacity="0.5"
-                          FallbackColor="{ThemeResource SolidBackgroundFillColorBase}" />
-        </Grid.Background>
-
+    <Grid x:Name="PageRoot" Background="Transparent">
         <!-- Content with devices -->
         <ScrollViewer VerticalScrollBarVisibility="Auto"
                       Visibility="{x:Bind ViewModel.HasDiscoveredDevices, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
