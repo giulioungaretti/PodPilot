@@ -53,7 +53,7 @@ public sealed class PairedDeviceLookupService : IPairedDeviceLookupService
             var existingEntry = await existingLazy.Value.ConfigureAwait(false);
             if (DateTime.UtcNow - existingEntry.Timestamp < _cacheExpiration)
             {
-                LogDebug($"Cache HIT for ProductId 0x{targetProductId:X4}");
+                //LogDebug($"Cache HIT for ProductId 0x{targetProductId:X4}");
                 return existingEntry.DeviceInfo;
             }
 

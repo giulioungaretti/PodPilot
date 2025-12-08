@@ -106,6 +106,7 @@ public class SimpleAirPodsDiscoveryService : IAirPodsDiscoveryService
             Model = model.GetDisplayName(),
             DeviceName = pairedDevice?.Name ?? model.GetDisplayName(),
             PairedDeviceId = pairedDevice?.Id,
+            PairedBluetoothAddress = pairedDevice?.Address,
             LeftBattery = airPods.GetLeftBattery() * 10,
             RightBattery = airPods.GetRightBattery() * 10,
             CaseBattery = airPods.GetCaseBattery() * 10,

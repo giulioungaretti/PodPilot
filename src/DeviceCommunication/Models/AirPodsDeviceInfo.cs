@@ -22,6 +22,12 @@ public record AirPodsDeviceInfo
     /// </summary>
     public string? PairedDeviceId { get; init; }
     
+    /// <summary>
+    /// The Bluetooth Classic address of the paired device (if found).
+    /// This is the stable MAC address used for audio routing, distinct from the rotating BLE advertisement address.
+    /// </summary>
+    public ulong? PairedBluetoothAddress { get; init; }
+    
     public string Model { get; init; } = string.Empty;
     public string DeviceName { get; init; } = string.Empty;
     public int? LeftBattery { get; init; }

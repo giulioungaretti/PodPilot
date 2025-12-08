@@ -34,7 +34,12 @@
             
             <!-- Header -->
             <Grid>
-                <StackPanel Orientation="Horizontal" Spacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12">
                     <!-- Device Icon -->
                     <TextBlock Text="🎧" 
                                FontSize="28" 
@@ -84,35 +89,28 @@
                     </StackPanel>
                 </StackPanel>
                 
-                <!-- Connect/Disconnect and Connect Audio Buttons -->
-                <StackPanel HorizontalAlignment="Right" 
-                            VerticalAlignment="Center"
-                            Orientation="Horizontal"
-                            Spacing="8">
-                    
-                    <!-- Connect Audio Button - Always available when paired -->
-                    <Button Command="{x:Bind Device.ConnectAudioCommand, Mode=OneWay}"
-                            IsEnabled="{x:Bind Device.CanConnectAudio, Mode=OneWay}"
-                            Visibility="{x:Bind Device.ShowConnectAudioButton, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                            ToolTipService.ToolTip="Activate audio profiles (A2DP/HFP) to route sound to this device">
-                        <Button.Transitions>
-                            <TransitionCollection>
-                                <EntranceThemeTransition FromHorizontalOffset="-20"/>
-                            </TransitionCollection>
-                        </Button.Transitions>
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <!-- Show spinner when connecting -->
-                            <ProgressRing Width="14" 
-                                          Height="14" 
-                                          IsActive="True"
-                                          Visibility="{x:Bind Device.IsConnecting, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                                          VerticalAlignment="Center"/>
-                            <FontIcon Glyph="&#xE995;" FontSize="14" FontFamily="Segoe MDL2 Assets" VerticalAlignment="Center"
-                                      Visibility="{x:Bind Device.IsConnecting, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
-                            <TextBlock Text="Connect Audio" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-                </StackPanel>
+                <!-- Primary Action Button - Single button that changes based on device status -->
+                <Button Command="{x:Bind Device.PrimaryActionCommand, Mode=OneWay}"
+                        IsEnabled="{x:Bind Device.CanExecutePrimaryAction, Mode=OneWay}"
+                        ToolTipService.ToolTip="{x:Bind Device.PrimaryButtonTooltip, Mode=OneWay}"
+                        Padding="8,6"
+                        MinWidth="36"
+                        MinHeight="32"
+                        Grid.Column="1"
+                        VerticalAlignment="Center">
+                    <Grid>
+                        <!-- Icon - hidden when busy -->
+                        <TextBlock Text="{x:Bind Device.PrimaryButtonIcon, Mode=OneWay}" 
+                                   FontSize="16" FontFamily="Segoe UI Emoji"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Visibility="{x:Bind Device.IsBusy, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+                        <!-- Spinner - shown when busy -->
+                        <ProgressRing Width="16" Height="16" 
+                                      IsActive="{x:Bind Device.IsBusy, Mode=OneWay}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"
+                                      Visibility="{x:Bind Device.IsBusy, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                    </Grid>
+                </Button>
             </Grid>
 
             <!-- Battery Section -->

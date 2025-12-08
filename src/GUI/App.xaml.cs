@@ -56,8 +56,12 @@ public partial class App : Application
         // Mid-level services
         services.AddSingleton<IAirPodsDiscoveryService, SimpleAirPodsDiscoveryService>();
         services.AddSingleton<IBluetoothConnectionService, BluetoothConnectionService>();
+        
+        // DeviceStateManager - single source of truth for device state
+        // Must be registered after discovery and audio monitor services
+        services.AddSingleton<IDeviceStateManager, DeviceStateManager>();
 
-        // High-level services (depend on discovery service)
+        // High-level services (depend on DeviceStateManager)
         services.AddSingleton<EarDetectionService>();
         services.AddSingleton<IBackgroundDeviceMonitoringService, BackgroundDeviceMonitoringService>();
 
@@ -81,13 +85,13 @@ public partial class App : Application
         _trayIconService = new TrayIconService(_mainWindow);
 
         // Get and start background monitoring service from DI
-        var backgroundMonitoringService = Services.GetRequiredService<IBackgroundDeviceMonitoringService>();
-        backgroundMonitoringService.PairedDeviceDetected += OnPairedDeviceDetected;
-        backgroundMonitoringService.Start();
+        //var backgroundMonitoringService = Services.GetRequiredService<IBackgroundDeviceMonitoringService>();
+        //backgroundMonitoringService.PairedDeviceDetected += OnPairedDeviceDetected;
+        //backgroundMonitoringService.Start();
 
         // Initialize ear detection service for auto-pause/resume
-        var earDetectionService = Services.GetRequiredService<EarDetectionService>();
-        await earDetectionService.InitializeAsync();
+        //var earDetectionService = Services.GetRequiredService<EarDetectionService>();
+        //await earDetectionService.InitializeAsync();
 
         // Start default audio output monitoring
         var audioOutputMonitor = Services.GetRequiredService<IDefaultAudioOutputMonitorService>();

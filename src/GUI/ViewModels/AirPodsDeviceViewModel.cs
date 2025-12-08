@@ -1,90 +1,42 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DeviceCommunication.Models;
 using DeviceCommunication.Services;
+using GUI.Services;
 
 namespace GUI.ViewModels;
 
 /// <summary>
-/// Immutable state object that encapsulates connection-related state and computed properties.
-/// Using a record reduces multiple PropertyChanged events to a single state update.
+/// Represents the current status of the device from the user's perspective.
+/// This is the single source of truth for what action is available.
 /// </summary>
-/// <param name="IsConnected">Whether the device is currently connected.</param>
-/// <param name="IsConnecting">Whether a connection attempt is in progress.</param>
-/// <param name="IsDefaultAudioOutput">Whether this device is the current default audio output.</param>
-/// <param name="PairedDeviceId">The Windows device ID of the paired device (null if not paired).</param>
-public sealed record ConnectionState(
-    bool IsConnected,
-    bool IsConnecting,
-    bool IsDefaultAudioOutput,
-    string? PairedDeviceId)
+public enum DeviceStatus
 {
-    /// <summary>
-    /// Gets whether the Connect button should be enabled.
-    /// Disabled when connecting, already connected, or device not paired in Windows.
-    /// </summary>
-    public bool CanConnectButton => !IsConnected && !IsConnecting && !string.IsNullOrEmpty(PairedDeviceId);
-
-    /// <summary>
-    /// Gets whether to show the Connect button (show when not connected and not connecting).
-    /// </summary>
-    public bool ShowConnectButton => !IsConnected && !IsConnecting;
-
-    /// <summary>
-    /// Gets whether the toggle connection button can be used.
-    /// Disabled when connecting or when device is not paired in Windows.
-    /// </summary>
-    public bool CanToggleConnection => !IsConnecting && !string.IsNullOrEmpty(PairedDeviceId);
-
-    /// <summary>
-    /// Gets the text to display on the connection toggle button.
-    /// Shows "Connect" when disconnected, "Disconnect" when connected.
-    /// </summary>
-    public string ConnectionButtonText => IsConnected ? "Disconnect" : "Connect";
-
-    /// <summary>
-    /// Gets the tooltip text for the connection toggle button.
-    /// Provides context-specific help text based on connection state.
-    /// </summary>
-    public string ConnectionButtonTooltip => IsConnected
-        ? "Disconnect from device"
-        : string.IsNullOrEmpty(PairedDeviceId)
-            ? "Device not paired. Click to open Bluetooth settings."
-            : "Connect to device";
-
-    /// <summary>
-    /// Gets whether the device needs pairing (shows warning icon on header).
-    /// True when device is not found in Windows paired devices list.
-    /// </summary>
-    public bool ShowPairingWarning => string.IsNullOrEmpty(PairedDeviceId) && !IsConnected;
-
-    /// <summary>
-    /// Gets whether to show the "Connect Audio" button.
-    /// Shows when device is paired, not currently connecting, and not already the default audio output.
-    /// </summary>
-    public bool ShowConnectAudioButton => !string.IsNullOrEmpty(PairedDeviceId) && !IsConnecting && !IsDefaultAudioOutput;
-
-    /// <summary>
-    /// Gets whether the "Connect Audio" button should be enabled.
-    /// </summary>
-    public bool CanConnectAudio => !string.IsNullOrEmpty(PairedDeviceId) && !IsConnecting && !IsDefaultAudioOutput;
-
-    /// <summary>
-    /// Creates a default disconnected state with no paired device.
-    /// </summary>
-    public static ConnectionState Default => new(false, false, false, null);
+    /// <summary>Device is not paired in Windows Bluetooth settings.</summary>
+    Unpaired,
+    
+    /// <summary>Device is paired but not currently connected.</summary>
+    Disconnected,
+    
+    /// <summary>Device is connected but audio is not routing to it.</summary>
+    Connected,
+    
+    /// <summary>Device is connected AND is the default audio output.</summary>
+    AudioActive
 }
 
 /// <summary>
 /// ViewModel wrapper for AirPodsDeviceInfo that provides property change notifications.
-/// This allows the UI to update only when properties actually change.
+/// Uses a simplified state machine based on DeviceStatus for clear button logic.
 /// </summary>
 public partial class AirPodsDeviceViewModel : ObservableObject
 {
     private readonly IBluetoothConnectionService _connectionService;
+    private readonly IDeviceStateManager? _stateManager;
 
     [Conditional("DEBUG")]
     private static void LogDebug(string message) => Debug.WriteLine($"[AirPodsDeviceVM] {message}");
@@ -100,6 +52,12 @@ public partial class AirPodsDeviceViewModel : ObservableObject
     /// The Windows device ID of the paired device (used for connections).
     /// </summary>
     public string? PairedDeviceId { get; private set; }
+    
+    /// <summary>
+    /// The Bluetooth Classic address of the paired device (used for audio output checks).
+    /// This is distinct from Address which is the rotating BLE advertisement address.
+    /// </summary>
+    public ulong? PairedBluetoothAddress { get; private set; }
 
     [ObservableProperty]
     private string _model = string.Empty;
@@ -134,89 +92,135 @@ public partial class AirPodsDeviceViewModel : ObservableObject
     [ObservableProperty]
     private bool _isLidOpen;
 
-    /// <summary>
-    /// Connection state containing IsConnected, IsConnecting, IsDefaultAudioOutput, and PairedDeviceId.
-    /// All connection-related computed properties are derived from this single state object.
-    /// </summary>
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(ConnectCommand))]
-    [NotifyCanExecuteChangedFor(nameof(ConnectAudioCommand))]
-    [NotifyCanExecuteChangedFor(nameof(ToggleConnectionCommand))]
-    private ConnectionState _connection = ConnectionState.Default;
-
     [ObservableProperty]
     private int _signalStrength;
 
     [ObservableProperty]
     private DateTime _lastSeen;
 
+    // ===== Core State Properties =====
+    
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Status))]
+    [NotifyPropertyChangedFor(nameof(ShowPairingWarning))]
+    [NotifyPropertyChangedFor(nameof(PrimaryButtonIcon))]
+    [NotifyPropertyChangedFor(nameof(PrimaryButtonTooltip))]
+    [NotifyPropertyChangedFor(nameof(CanExecutePrimaryAction))]
+    [NotifyPropertyChangedFor(nameof(PrimaryActionCommand))]
+    private bool _isConnected;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanExecutePrimaryAction))]
+    private bool _isBusy;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Status))]
+    [NotifyPropertyChangedFor(nameof(PrimaryButtonIcon))]
+    [NotifyPropertyChangedFor(nameof(PrimaryButtonTooltip))]
+    [NotifyPropertyChangedFor(nameof(PrimaryActionCommand))]
+    private bool _isDefaultAudioOutput;
+
+    // ===== Computed Properties =====
+
     /// <summary>
     /// Gets whether the device is currently active (seen within last 5 seconds).
-    /// UI can bind to this to show visual inactive state.
     /// </summary>
     public bool IsActive => (DateTime.Now - LastSeen).TotalSeconds < 5;
 
-    // Connection-related computed properties delegate to ConnectionState
-    /// <summary>Gets whether the Connect button should be enabled.</summary>
-    public bool CanConnectButton => Connection.CanConnectButton;
-
-    /// <summary>Gets whether to show the Connect button.</summary>
-    public bool ShowConnectButton => Connection.ShowConnectButton;
+    /// <summary>
+    /// Gets the current device status based on pairing, connection, and audio state.
+    /// This is the single source of truth for UI logic.
+    /// Note: IsDefaultAudioOutput implies IsConnected, so we check it first to handle
+    /// race conditions where audio routing events fire before BLE discovery updates.
+    /// </summary>
+    public DeviceStatus Status
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(PairedDeviceId))
+                return DeviceStatus.Unpaired;
+            if (IsDefaultAudioOutput)
+                return DeviceStatus.AudioActive;
+            if (!IsConnected)
+                return DeviceStatus.Disconnected;
+            return DeviceStatus.Connected;
+        }
+    }
 
     /// <summary>
-    /// Gets whether to show the Disconnect button.
-    /// Always false - Windows doesn't provide an API to disconnect without unpairing.
+    /// Gets whether to show the pairing warning icon (⚠️).
     /// </summary>
-    public bool ShowDisconnectButton => false;
+    public bool ShowPairingWarning => Status == DeviceStatus.Unpaired;
 
-    /// <summary>Gets whether the toggle connection button can be used.</summary>
-    public bool CanToggleConnection => Connection.CanToggleConnection;
+    /// <summary>
+    /// Gets the icon for the primary action button.
+    /// </summary>
+    public string PrimaryButtonIcon => Status switch
+    {
+        DeviceStatus.Unpaired => "⛔",
+        DeviceStatus.Disconnected => "🔗",
+        DeviceStatus.Connected => "🔊",
+        DeviceStatus.AudioActive => "❌",
+        _ => "⏰"
+    };
 
-    /// <summary>Gets the text to display on the connection toggle button.</summary>
-    public string ConnectionButtonText => Connection.ConnectionButtonText;
+    /// <summary>
+    /// Gets the tooltip for the primary action button.
+    /// </summary>
+    public string PrimaryButtonTooltip => Status switch
+    {
+        DeviceStatus.Unpaired => "Device not paired. Click to open Bluetooth settings.",
+        DeviceStatus.Disconnected => "Connect to device",
+        DeviceStatus.Connected => "Route audio to this device",
+        DeviceStatus.AudioActive => "Disconnect from device",
+        _ => "Connect"
+    };
 
-    /// <summary>Gets the tooltip text for the connection toggle button.</summary>
-    public string ConnectionButtonTooltip => Connection.ConnectionButtonTooltip;
+    /// <summary>
+    /// Gets whether the primary action can be executed.
+    /// Disabled when busy or when unpaired (but still clickable to open settings).
+    /// </summary>
+    public bool CanExecutePrimaryAction => !IsBusy && Status != DeviceStatus.Unpaired;
 
-    /// <summary>Gets whether the device needs pairing (shows warning icon on header).</summary>
-    public bool ShowPairingWarning => Connection.ShowPairingWarning;
-
-    /// <summary>Gets whether to show the "Connect Audio" button.</summary>
-    public bool ShowConnectAudioButton => Connection.ShowConnectAudioButton;
-
-    /// <summary>Gets whether the "Connect Audio" button should be enabled.</summary>
-    public bool CanConnectAudio => Connection.CanConnectAudio;
-
-    // Expose individual connection properties for backward compatibility with existing bindings
-    /// <summary>Gets whether the device is currently connected.</summary>
-    public bool IsConnected => Connection.IsConnected;
-
-    /// <summary>Gets whether a connection attempt is in progress.</summary>
-    public bool IsConnecting => Connection.IsConnecting;
-
-    /// <summary>Gets whether this device is the current default audio output.</summary>
-    public bool IsDefaultAudioOutput => Connection.IsDefaultAudioOutput;
+    /// <summary>
+    /// Gets the command for the primary action based on current status.
+    /// </summary>
+    public ICommand PrimaryActionCommand => Status switch
+    {
+        DeviceStatus.Unpaired => OpenBluetoothSettingsCommand,
+        DeviceStatus.Disconnected => ConnectCommand,
+        DeviceStatus.Connected => ConnectAudioCommand,
+        DeviceStatus.AudioActive => DisconnectCommand,
+        _ => ConnectCommand
+    };
 
     public AirPodsDeviceViewModel(AirPodsDeviceInfo deviceInfo, IBluetoothConnectionService connectionService)
+        : this(deviceInfo, connectionService, null)
+    {
+    }
+
+    public AirPodsDeviceViewModel(AirPodsDeviceInfo deviceInfo, IBluetoothConnectionService connectionService, IDeviceStateManager? stateManager)
     {
         Address = deviceInfo.Address;
         ProductId = deviceInfo.ProductId;
         PairedDeviceId = deviceInfo.PairedDeviceId;
         _connectionService = connectionService ?? throw new ArgumentNullException(nameof(connectionService));
+        _stateManager = stateManager;
         
         UpdateFrom(deviceInfo);
     }
 
     /// <summary>
     /// Updates properties from a device info object.
-    /// The [ObservableProperty] generated setters already handle equality checks,
-    /// so PropertyChanged only fires when values actually change.
+    /// Note: Connection state (IsConnected) is NOT updated from discovery data while IsBusy,
+    /// to prevent stale cached values from overwriting state during active operations.
     /// </summary>
     public void UpdateFrom(AirPodsDeviceInfo deviceInfo)
     {
-        Address = deviceInfo.Address; // Update address in case MAC rotated
+        Address = deviceInfo.Address;
         ProductId = deviceInfo.ProductId;
-        PairedDeviceId = deviceInfo.PairedDeviceId; // Update paired device ID
+        PairedDeviceId = deviceInfo.PairedDeviceId;
+        PairedBluetoothAddress = deviceInfo.PairedBluetoothAddress;
         Model = deviceInfo.Model;
         DeviceName = deviceInfo.DeviceName;
         LeftBattery = deviceInfo.LeftBattery;
@@ -231,77 +235,128 @@ public partial class AirPodsDeviceViewModel : ObservableObject
         SignalStrength = deviceInfo.SignalStrength;
         LastSeen = deviceInfo.LastSeen;
         
-        // Update connection state - single property change notification for all connection-related properties
-        Connection = Connection with 
-        { 
-            IsConnected = deviceInfo.IsConnected,
-            PairedDeviceId = deviceInfo.PairedDeviceId
-        };
+        // Only update connection state from discovery if we're not busy with an operation.
+        // This prevents stale cached values from overwriting our state during Connect/Disconnect.
+        if (!IsBusy)
+        {
+            IsConnected = deviceInfo.IsConnected;
+        }
+        else
+        {
+            LogDebug($"Skipping IsConnected update (IsBusy=true, discovery says {deviceInfo.IsConnected}, we have {IsConnected})");
+        }
         
-        // Notify time-based computed property
+        // Notify computed properties that depend on PairedDeviceId (not an ObservableProperty)
+        OnPropertyChanged(nameof(Status));
+        OnPropertyChanged(nameof(ShowPairingWarning));
+        OnPropertyChanged(nameof(PrimaryButtonIcon));
+        OnPropertyChanged(nameof(PrimaryButtonTooltip));
+        OnPropertyChanged(nameof(CanExecutePrimaryAction));
+        OnPropertyChanged(nameof(PrimaryActionCommand));
         OnPropertyChanged(nameof(IsActive));
     }
 
     /// <summary>
     /// Refreshes the IsActive property to reflect current time.
-    /// Call this periodically to update the active/inactive visual state.
     /// </summary>
-    public void RefreshIsActive()
+    public void RefreshIsActive() => OnPropertyChanged(nameof(IsActive));
+
+    /// <summary>
+    /// Updates the ViewModel from the centralized DeviceState.
+    /// This is the preferred update path when using DeviceStateManager.
+    /// </summary>
+    public void UpdateFromState(DeviceState state)
     {
+        ArgumentNullException.ThrowIfNull(state);
+        
+        PairedDeviceId = state.PairedDeviceId;
+        PairedBluetoothAddress = state.PairedBluetoothAddress;
+        Address = state.BleAddress;
+        Model = state.Model;
+        DeviceName = state.DeviceName;
+        LeftBattery = state.LeftBattery;
+        RightBattery = state.RightBattery;
+        CaseBattery = state.CaseBattery;
+        IsLeftCharging = state.IsLeftCharging;
+        IsRightCharging = state.IsRightCharging;
+        IsCaseCharging = state.IsCaseCharging;
+        IsLeftInEar = state.IsLeftInEar;
+        IsRightInEar = state.IsRightInEar;
+        IsLidOpen = state.IsLidOpen;
+        SignalStrength = state.SignalStrength;
+        LastSeen = state.LastSeen;
+        
+        // DeviceStateManager handles lockout periods, so we trust its state
+        IsConnected = state.IsConnected;
+        IsDefaultAudioOutput = state.IsDefaultAudioOutput;
+        
+        // Notify computed properties
+        OnPropertyChanged(nameof(Status));
+        OnPropertyChanged(nameof(ShowPairingWarning));
+        OnPropertyChanged(nameof(PrimaryButtonIcon));
+        OnPropertyChanged(nameof(PrimaryButtonTooltip));
+        OnPropertyChanged(nameof(CanExecutePrimaryAction));
+        OnPropertyChanged(nameof(PrimaryActionCommand));
         OnPropertyChanged(nameof(IsActive));
     }
 
     /// <summary>
     /// Refreshes the IsDefaultAudioOutput property by checking the current Windows audio output.
-    /// Call this after connection attempts or periodically to keep the UI in sync.
     /// </summary>
     public async Task RefreshDefaultAudioOutputStatusAsync()
     {
-        if (Address == 0)
+        // Use PairedBluetoothAddress (Bluetooth Classic address) for audio checks,
+        // not Address (rotating BLE advertisement address)
+        if (!PairedBluetoothAddress.HasValue || PairedBluetoothAddress.Value == 0)
         {
-            Connection = Connection with { IsDefaultAudioOutput = false };
+            IsDefaultAudioOutput = false;
             return;
         }
 
         try
         {
-            var isDefault = await Win32BluetoothConnector.IsDefaultAudioOutputAsync(Address);
-            Connection = Connection with { IsDefaultAudioOutput = isDefault };
+            IsDefaultAudioOutput = await Win32BluetoothConnector.IsDefaultAudioOutputAsync(PairedBluetoothAddress.Value);
         }
         catch
         {
-            Connection = Connection with { IsDefaultAudioOutput = false };
+            IsDefaultAudioOutput = false;
         }
     }
 
-    [RelayCommand(CanExecute = nameof(CanConnect))]
+    [RelayCommand]
     private async Task ConnectAsync()
     {
-        if (IsConnecting || IsConnected || string.IsNullOrEmpty(Connection.PairedDeviceId))
+        if (IsBusy || IsConnected || string.IsNullOrEmpty(PairedDeviceId))
             return;
 
         try
         {
-            Connection = Connection with { IsConnecting = true };
+            IsBusy = true;
+            _stateManager?.BeginConnectionOperation(ProductId);
             LogDebug($"Connecting to {Model}...");
             
-            var result = await _connectionService.ConnectByDeviceIdAsync(Connection.PairedDeviceId);
+            var result = await _connectionService.ConnectByDeviceIdAsync(PairedDeviceId);
             
             switch (result)
             {
                 case ConnectionResult.Connected:
+                    IsConnected = true;
                     await Task.Delay(1500);
-                    LogDebug(IsConnected ? $"Connected to {Model}" : $"{Model} connection pending");
+                    await RefreshDefaultAudioOutputStatusAsync();
+                    _stateManager?.EndConnectionOperation(ProductId, success: true, IsConnected, IsDefaultAudioOutput);
+                    LogDebug($"Connected to {Model}");
                     break;
                     
                 case ConnectionResult.DeviceNotFound:
                     LogDebug($"{Model} not found (unpaired?)");
-                    Connection = Connection with { PairedDeviceId = null };
                     PairedDeviceId = null;
+                    _stateManager?.EndConnectionOperation(ProductId, success: false, isConnected: false, isDefaultAudioOutput: false);
+                    OnPropertyChanged(nameof(Status));
                     break;
                     
                 case ConnectionResult.Failed:
                     LogDebug($"Connect failed for {Model}, opening settings");
+                    _stateManager?.EndConnectionOperation(ProductId, success: false, IsConnected, IsDefaultAudioOutput);
                     await BluetoothConnectionService.OpenBluetoothSettingsForDeviceAsync();
                     break;
             }
@@ -309,14 +364,13 @@ public partial class AirPodsDeviceViewModel : ObservableObject
         catch (Exception ex)
         {
             LogDebug($"Connect error: {ex.Message}");
+            _stateManager?.EndConnectionOperation(ProductId, success: false, IsConnected, IsDefaultAudioOutput);
         }
         finally
         {
-            Connection = Connection with { IsConnecting = false };
+            IsBusy = false;
         }
     }
-
-    private bool CanConnect() => !IsConnecting && !IsConnected && !string.IsNullOrEmpty(Connection.PairedDeviceId);
 
     [RelayCommand]
     private static async Task OpenBluetoothSettingsAsync()
@@ -331,95 +385,90 @@ public partial class AirPodsDeviceViewModel : ObservableObject
         }
     }
 
-    /// <summary>
-    /// Explicitly connects the audio profiles (A2DP, HFP) for this device.
-    /// Use this when the device appears connected but audio isn't routing to it.
-    /// </summary>
-    [RelayCommand(CanExecute = nameof(CanConnectAudio))]
+    [RelayCommand]
     private async Task ConnectAudioAsync()
     {
-        if (IsConnecting || string.IsNullOrEmpty(Connection.PairedDeviceId))
+        if (IsBusy || string.IsNullOrEmpty(PairedDeviceId))
             return;
 
         try
         {
-            Connection = Connection with { IsConnecting = true };
+            IsBusy = true;
+            _stateManager?.BeginConnectionOperation(ProductId);
             LogDebug($"Activating audio for {Model}...");
             
-            var result = await _connectionService.ConnectByDeviceIdAsync(Connection.PairedDeviceId);
+            var result = await _connectionService.ConnectByDeviceIdAsync(PairedDeviceId);
             
             switch (result)
             {
                 case ConnectionResult.Connected:
+                    IsConnected = true;
                     await Task.Delay(1500);
                     await RefreshDefaultAudioOutputStatusAsync();
+                    _stateManager?.EndConnectionOperation(ProductId, success: true, IsConnected, IsDefaultAudioOutput);
                     LogDebug($"Audio activated for {Model}");
                     break;
                     
                 case ConnectionResult.DeviceNotFound:
                     LogDebug($"{Model} not found (unpaired?)");
-                    Connection = Connection with { PairedDeviceId = null };
                     PairedDeviceId = null;
+                    _stateManager?.EndConnectionOperation(ProductId, success: false, isConnected: false, isDefaultAudioOutput: false);
+                    OnPropertyChanged(nameof(Status));
                     break;
                     
                 case ConnectionResult.Failed:
                     LogDebug($"Audio activation failed for {Model}");
+                    _stateManager?.EndConnectionOperation(ProductId, success: false, IsConnected, IsDefaultAudioOutput);
                     break;
             }
         }
         catch (Exception ex)
         {
             LogDebug($"Audio error: {ex.Message}");
+            _stateManager?.EndConnectionOperation(ProductId, success: false, IsConnected, IsDefaultAudioOutput);
         }
         finally
         {
-            Connection = Connection with { IsConnecting = false };
-        }
-    }
-
-    [RelayCommand(CanExecute = nameof(CanToggleConnection))]
-    private async Task ToggleConnectionAsync()
-    {
-        if (IsConnected)
-        {
-            await DisconnectAsync();
-        }
-        else
-        {
-            await ConnectAsync();
+            IsBusy = false;
         }
     }
 
     [RelayCommand]
     private async Task DisconnectAsync()
     {
-        if (!IsConnected || IsConnecting || string.IsNullOrEmpty(Connection.PairedDeviceId))
+        if (!IsConnected || IsBusy || string.IsNullOrEmpty(PairedDeviceId))
             return;
 
         try
         {
-            Connection = Connection with { IsConnecting = true };
+            IsBusy = true;
+            _stateManager?.BeginConnectionOperation(ProductId);
             LogDebug($"Disconnecting from {Model}...");
             
-            var success = await _connectionService.DisconnectByDeviceIdAsync(Connection.PairedDeviceId);
+            var success = await _connectionService.DisconnectByDeviceIdAsync(PairedDeviceId);
             
             if (success)
             {
+                IsConnected = false;
+                IsDefaultAudioOutput = false;
+                _stateManager?.EndConnectionOperation(ProductId, success: true, isConnected: false, isDefaultAudioOutput: false);
                 await Task.Delay(1000);
-                LogDebug(!IsConnected ? $"Disconnected from {Model}" : $"{Model} disconnect pending");
+                LogDebug($"Disconnected from {Model}");
             }
             else
             {
                 LogDebug($"Disconnect failed for {Model}");
+                _stateManager?.EndConnectionOperation(ProductId, success: false, IsConnected, IsDefaultAudioOutput);
             }
         }
         catch (Exception ex)
         {
             LogDebug($"Disconnect error: {ex.Message}");
+            _stateManager?.EndConnectionOperation(ProductId, success: false, IsConnected, IsDefaultAudioOutput);
         }
         finally
         {
-            Connection = Connection with { IsConnecting = false };
+            IsBusy = false;
         }
     }
 }

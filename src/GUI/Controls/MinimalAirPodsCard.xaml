@@ -50,19 +50,19 @@
                                ToolTipService.ToolTip="Playing audio 🎶"/>
                 </StackPanel>
                 
-                <!-- Connect Audio Button -->
+                <!-- Primary Action Button -->
                 <Button Grid.Column="1" 
-                        Command="{x:Bind Device.ConnectAudioCommand, Mode=OneWay}"
-                        IsEnabled="{x:Bind Device.CanConnectAudio, Mode=OneWay}"
-                        Visibility="{x:Bind Device.ShowConnectAudioButton, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                        ToolTipService.ToolTip="Activate audio profiles (A2DP/HFP)"
+                        Command="{x:Bind Device.PrimaryActionCommand, Mode=OneWay}"
+                        IsEnabled="{x:Bind Device.CanExecutePrimaryAction, Mode=OneWay}"
+                        ToolTipService.ToolTip="{x:Bind Device.PrimaryButtonTooltip, Mode=OneWay}"
                         Padding="8,4">
                     <StackPanel Orientation="Horizontal" Spacing="4">
-                        <ProgressRing Width="12" Height="12" IsActive="True"
-                                      Visibility="{x:Bind Device.IsConnecting, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                        <FontIcon Glyph="&#xE995;" FontSize="12" FontFamily="Segoe MDL2 Assets"
-                                  Visibility="{x:Bind Device.IsConnecting, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
-                        <TextBlock Text="Audio" FontSize="12"/>
+                        <ProgressRing Width="12" Height="12" 
+                                      IsActive="{x:Bind Device.IsBusy, Mode=OneWay}"
+                                      Visibility="{x:Bind Device.IsBusy, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                        <TextBlock Text="{x:Bind Device.PrimaryButtonIcon, Mode=OneWay}" 
+                                   FontSize="12" FontFamily="Segoe UI Emoji"
+                                   Visibility="{x:Bind Device.IsBusy, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
                     </StackPanel>
                 </Button>
             </Grid>

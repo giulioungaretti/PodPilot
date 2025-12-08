@@ -6,18 +6,20 @@ using CommunityToolkit.Mvvm.Input;
 using DeviceCommunication.Models;
 using DeviceCommunication.Services;
 using System.Collections.ObjectModel;
+using GUI.Services;
 using Microsoft.UI.Dispatching;
 
 namespace GUI.ViewModels;
 
 /// <summary>
 /// ViewModel for the main page displaying AirPods devices.
+/// Uses DeviceStateManager as the single source of truth for device state.
 /// </summary>
 public partial class MainPageViewModel : ObservableObject, IDisposable
 {
     private readonly IAirPodsDiscoveryService _discoveryService;
     private readonly IBluetoothConnectionService _connectionService;
-    private readonly IDefaultAudioOutputMonitorService _audioOutputMonitor;
+    private readonly IDeviceStateManager _stateManager;
     private readonly DispatcherQueue _dispatcherQueue;
     private readonly DispatcherQueueTimer _cleanupTimer;
     private bool _isProcessingCleanup;
@@ -33,18 +35,18 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
     public MainPageViewModel(
         IAirPodsDiscoveryService discoveryService,
         IBluetoothConnectionService connectionService,
-        IDefaultAudioOutputMonitorService audioOutputMonitor,
+        IDeviceStateManager stateManager,
         DispatcherQueue dispatcherQueue)
     {
         _discoveryService = discoveryService;
         _connectionService = connectionService;
-        _audioOutputMonitor = audioOutputMonitor;
+        _stateManager = stateManager;
         _dispatcherQueue = dispatcherQueue;
         DiscoveredDevices = new ObservableCollection<AirPodsDeviceViewModel>();
 
-        _discoveryService.DeviceDiscovered += OnDeviceDiscovered;
-        _discoveryService.DeviceUpdated += OnDeviceUpdated;
-        _audioOutputMonitor.DefaultAudioOutputChanged += OnDefaultAudioOutputChanged;
+        // Subscribe to DeviceStateManager events (single source of truth)
+        _stateManager.DeviceDiscovered += OnDeviceDiscovered;
+        _stateManager.DeviceStateChanged += OnDeviceStateChanged;
 
         _cleanupTimer = _dispatcherQueue.CreateTimer();
         _cleanupTimer.Interval = TimeSpan.FromSeconds(5);
@@ -71,29 +73,53 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
         _discoveryService.StopScanning();
     }
 
-    private void OnDeviceDiscovered(object? sender, AirPodsDeviceInfo device)
+    private void OnDeviceDiscovered(object? sender, DeviceState state)
     {
-        // Marshal to UI thread to ensure thread-safe collection modification
-        _dispatcherQueue.TryEnqueue(() =>
+        // Already on UI thread (DeviceStateManager marshals events)
+        var existing = DiscoveredDevices.FirstOrDefault(d => d.ProductId == state.ProductId);
+        if (existing == null)
         {
-            var deviceViewModel = new AirPodsDeviceViewModel(device, _connectionService);
+            // Create new ViewModel from DeviceState
+            var deviceInfo = CreateDeviceInfoFromState(state);
+            var deviceViewModel = new AirPodsDeviceViewModel(deviceInfo, _connectionService, _stateManager);
             DiscoveredDevices.Add(deviceViewModel);
             HasDiscoveredDevices = DiscoveredDevices.Count > 0;
-        });
+        }
     }
 
-    private void OnDeviceUpdated(object? sender, AirPodsDeviceInfo device)
+    private void OnDeviceStateChanged(object? sender, DeviceStateChangedEventArgs args)
     {
-        // Marshal to UI thread to ensure thread-safe collection modification
-        _dispatcherQueue.TryEnqueue(() =>
+        // Already on UI thread (DeviceStateManager marshals events)
+        var existing = DiscoveredDevices.FirstOrDefault(d => d.ProductId == args.State.ProductId);
+        if (existing != null)
         {
-            // Update in discovered list - find by Product ID
-            var existing = DiscoveredDevices.FirstOrDefault(d => d.ProductId == device.ProductId);
-            if (existing != null)
-            {
-                existing.UpdateFrom(device);
-            }
-        });
+            existing.UpdateFromState(args.State);
+        }
+    }
+
+    private static AirPodsDeviceInfo CreateDeviceInfoFromState(DeviceState state)
+    {
+        return new AirPodsDeviceInfo
+        {
+            Address = state.BleAddress,
+            ProductId = state.ProductId,
+            Model = state.Model,
+            DeviceName = state.DeviceName,
+            PairedDeviceId = state.PairedDeviceId,
+            PairedBluetoothAddress = state.PairedBluetoothAddress,
+            LeftBattery = state.LeftBattery,
+            RightBattery = state.RightBattery,
+            CaseBattery = state.CaseBattery,
+            IsLeftCharging = state.IsLeftCharging,
+            IsRightCharging = state.IsRightCharging,
+            IsCaseCharging = state.IsCaseCharging,
+            IsLeftInEar = state.IsLeftInEar,
+            IsRightInEar = state.IsRightInEar,
+            IsLidOpen = state.IsLidOpen,
+            SignalStrength = state.SignalStrength,
+            LastSeen = state.LastSeen,
+            IsConnected = state.IsConnected
+        };
     }
 
     private void OnCleanupTimerTick(DispatcherQueueTimer sender, object args)
@@ -137,25 +163,11 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
         }
     }
 
-    private void OnDefaultAudioOutputChanged(object? sender, DefaultAudioOutputChangedEventArgs args)
-    {
-        // Marshal to UI thread
-        _dispatcherQueue.TryEnqueue(() =>
-        {
-            // Refresh the audio output status for all devices
-            foreach (var device in DiscoveredDevices)
-            {
-                _ = device.RefreshDefaultAudioOutputStatusAsync();
-            }
-        });
-    }
-
     public void Dispose()
     {
         _cleanupTimer.Stop();
-        _discoveryService.DeviceDiscovered -= OnDeviceDiscovered;
-        _discoveryService.DeviceUpdated -= OnDeviceUpdated;
-        _audioOutputMonitor.DefaultAudioOutputChanged -= OnDefaultAudioOutputChanged;
+        _stateManager.DeviceDiscovered -= OnDeviceDiscovered;
+        _stateManager.DeviceStateChanged -= OnDeviceStateChanged;
         _discoveryService.Dispose();
     }
 }

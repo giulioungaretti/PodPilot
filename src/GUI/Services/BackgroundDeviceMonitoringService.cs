@@ -8,28 +8,40 @@ namespace GUI.Services;
 
 /// <summary>
 /// Background service that monitors for paired AirPods devices being advertised.
+/// Uses DeviceStateManager as the single source of truth for device state.
 /// Tracks device connection state and allows re-notification after disconnect/reconnect cycles.
 /// </summary>
 public sealed class BackgroundDeviceMonitoringService : IBackgroundDeviceMonitoringService
 {
     private readonly IAirPodsDiscoveryService _discoveryService;
-    private readonly ConcurrentDictionary<string, DeviceConnectionState> _deviceStates;
+    private readonly IDeviceStateManager _stateManager;
+    private readonly ConcurrentDictionary<ushort, DeviceConnectionState> _deviceStates;
     private readonly DispatcherQueue _dispatcherQueue;
     private bool _disposed;
+    
+    /// <summary>
+    /// Minimum time between notifications for the same device to prevent rapid oscillation.
+    /// </summary>
+    private static readonly TimeSpan MinNotificationInterval = TimeSpan.FromSeconds(5);
 
     public event EventHandler<AirPodsDeviceInfo>? PairedDeviceDetected;
 
-    public BackgroundDeviceMonitoringService(DispatcherQueue dispatcherQueue, IAirPodsDiscoveryService discoveryService)
+    public BackgroundDeviceMonitoringService(
+        DispatcherQueue dispatcherQueue, 
+        IAirPodsDiscoveryService discoveryService,
+        IDeviceStateManager stateManager)
     {
         ArgumentNullException.ThrowIfNull(dispatcherQueue);
         ArgumentNullException.ThrowIfNull(discoveryService);
+        ArgumentNullException.ThrowIfNull(stateManager);
         
         _dispatcherQueue = dispatcherQueue;
         _discoveryService = discoveryService;
-        _deviceStates = new ConcurrentDictionary<string, DeviceConnectionState>();
+        _stateManager = stateManager;
+        _deviceStates = new ConcurrentDictionary<ushort, DeviceConnectionState>();
         
-        _discoveryService.DeviceDiscovered += OnDeviceDiscovered;
-        _discoveryService.DeviceUpdated += OnDeviceUpdated;
+        // Subscribe to DeviceStateManager events (single source of truth)
+        _stateManager.DeviceStateChanged += OnDeviceStateChanged;
     }
 
     public void Start()
@@ -42,80 +54,91 @@ public sealed class BackgroundDeviceMonitoringService : IBackgroundDeviceMonitor
         _discoveryService.StopScanning();
     }
 
-    private void OnDeviceDiscovered(object? sender, AirPodsDeviceInfo device)
+    private void OnDeviceStateChanged(object? sender, DeviceStateChangedEventArgs args)
     {
-        if (string.IsNullOrEmpty(device.PairedDeviceId))
+        var state = args.State;
+        
+        // Only track paired devices
+        if (string.IsNullOrEmpty(state.PairedDeviceId))
             return;
 
-        // Track the new device state (thread-safe)
-        var state = _deviceStates.AddOrUpdate(
-            device.PairedDeviceId,
-            _ => new DeviceConnectionState
-            {
-                IsConnected = device.IsConnected,
-                HasNotified = false
-            },
-            (_, existing) =>
-            {
-                existing.IsConnected = device.IsConnected;
-                existing.HasNotified = false;
-                return existing;
-            });
+        // Get or create device tracking state
+        var trackingState = _deviceStates.GetOrAdd(state.ProductId, _ => new DeviceConnectionState());
 
-        // Notify if device is connected
-        if (device.IsConnected)
+        bool wasConnected = trackingState.IsConnected;
+        bool isConnected = state.IsConnected;
+
+        // Update tracking state
+        trackingState.IsConnected = isConnected;
+
+        // Detect connection transitions
+        bool shouldNotify = false;
+        
+        if (args.Reason == DeviceStateChangeReason.Discovered && isConnected)
         {
-            NotifyDeviceDetected(device);
+            // New device discovered and connected
+            shouldNotify = true;
         }
-    }
-
-    private void OnDeviceUpdated(object? sender, AirPodsDeviceInfo device)
-    {
-        if (string.IsNullOrEmpty(device.PairedDeviceId))
-            return;
-
-        // Get or create device state (thread-safe)
-        var state = _deviceStates.GetOrAdd(device.PairedDeviceId, _ => new DeviceConnectionState());
-
-        bool wasConnected = state.IsConnected;
-        bool isConnected = device.IsConnected;
-
-        // Update connection state
-        state.IsConnected = isConnected;
-
-        // Detect disconnect -> reconnect transition
-        if (!wasConnected && isConnected)
+        else if (!wasConnected && isConnected)
         {
-            // Device reconnected - reset notification flag and notify
-            state.HasNotified = false;
-            NotifyDeviceDetected(device);
+            // Disconnect -> reconnect transition
+            trackingState.HasNotified = false;
+            shouldNotify = true;
         }
         else if (wasConnected && !isConnected)
         {
             // Device disconnected - reset notification flag for next connection
-            state.HasNotified = false;
+            trackingState.HasNotified = false;
+        }
+
+        if (shouldNotify)
+        {
+            NotifyDeviceDetected(state, trackingState);
         }
     }
 
-    private void NotifyDeviceDetected(AirPodsDeviceInfo device)
+    private void NotifyDeviceDetected(DeviceState state, DeviceConnectionState trackingState)
     {
-        if (string.IsNullOrEmpty(device.PairedDeviceId))
-            return;
-
-        if (!_deviceStates.TryGetValue(device.PairedDeviceId, out var state))
-            return;
-
         // Only notify once per connection session
-        if (state.HasNotified)
+        if (trackingState.HasNotified)
             return;
 
-        state.HasNotified = true;
-
-        // Marshal to UI thread and raise event
-        _dispatcherQueue.TryEnqueue(() =>
+        // Debounce: Don't notify if we notified recently for this device
+        var now = DateTime.UtcNow;
+        if (trackingState.LastNotificationTime.HasValue && 
+            now - trackingState.LastNotificationTime.Value < MinNotificationInterval)
         {
-            PairedDeviceDetected?.Invoke(this, device);
-        });
+            return;
+        }
+
+        trackingState.HasNotified = true;
+        trackingState.LastNotificationTime = now;
+
+        // Create DeviceInfo from state
+        var deviceInfo = new AirPodsDeviceInfo
+        {
+            Address = state.BleAddress,
+            ProductId = state.ProductId,
+            Model = state.Model,
+            DeviceName = state.DeviceName,
+            PairedDeviceId = state.PairedDeviceId,
+            PairedBluetoothAddress = state.PairedBluetoothAddress,
+            LeftBattery = state.LeftBattery,
+            RightBattery = state.RightBattery,
+            CaseBattery = state.CaseBattery,
+            IsLeftCharging = state.IsLeftCharging,
+            IsRightCharging = state.IsRightCharging,
+            IsCaseCharging = state.IsCaseCharging,
+            IsLeftInEar = state.IsLeftInEar,
+            IsRightInEar = state.IsRightInEar,
+            IsLidOpen = state.IsLidOpen,
+            SignalStrength = state.SignalStrength,
+            LastSeen = state.LastSeen,
+            IsConnected = state.IsConnected
+        };
+
+        // Already on UI thread (DeviceStateManager marshals events)
+        PairedDeviceDetected?.Invoke(this, deviceInfo);
     }
 
     /// <summary>
@@ -134,9 +157,7 @@ public sealed class BackgroundDeviceMonitoringService : IBackgroundDeviceMonitor
         if (_disposed)
             return;
 
-        _discoveryService.DeviceDiscovered -= OnDeviceDiscovered;
-        _discoveryService.DeviceUpdated -= OnDeviceUpdated;
-        // Note: Discovery service is disposed by the owner (App.xaml.cs)
+        _stateManager.DeviceStateChanged -= OnDeviceStateChanged;
         _deviceStates.Clear();
         _disposed = true;
     }
@@ -145,6 +166,7 @@ public sealed class BackgroundDeviceMonitoringService : IBackgroundDeviceMonitor
     {
         public bool IsConnected { get; set; }
         public bool HasNotified { get; set; }
+        public DateTime? LastNotificationTime { get; set; }
     }
 }
 
