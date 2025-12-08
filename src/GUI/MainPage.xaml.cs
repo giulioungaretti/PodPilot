@@ -19,7 +19,7 @@ public sealed partial class MainPage : Page
         ViewModel = App.Current.Services.GetRequiredService<MainPageViewModel>();
 
         // Initialize when page loads
-        Loaded += (_, _) => ViewModel.Initialize();
+        Loaded += async (_, _) => await ViewModel.InitializeAsync();
         Unloaded += (_, _) => ViewModel.Dispose();
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using DeviceCommunication.Models;
+using DeviceCommunication.Services;
 
 namespace GUI.Services;
 
@@ -9,9 +10,9 @@ namespace GUI.Services;
 public interface IBackgroundDeviceMonitoringService : IDisposable
 {
     /// <summary>
-    /// Occurs when a paired device is detected and connected.
+    /// Occurs when a paired device is detected and needs attention.
     /// </summary>
-    event EventHandler<AirPodsDeviceInfo>? PairedDeviceDetected;
+    event EventHandler<AirPodsState>? PairedDeviceDetected;
 
     /// <summary>
     /// Starts monitoring for device connections.

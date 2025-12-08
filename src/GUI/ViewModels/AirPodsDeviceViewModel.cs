@@ -194,66 +194,20 @@ public partial class AirPodsDeviceViewModel : ObservableObject
         _ => ConnectCommand
     };
 
-    public AirPodsDeviceViewModel(AirPodsDeviceInfo deviceInfo, IBluetoothConnectionService connectionService)
-        : this(deviceInfo, connectionService, null)
+    public AirPodsDeviceViewModel(AirPodsState state, IBluetoothConnectionService connectionService)
+        : this(state, connectionService, null)
     {
     }
 
-    public AirPodsDeviceViewModel(AirPodsDeviceInfo deviceInfo, IBluetoothConnectionService connectionService, IDeviceStateManager? stateManager)
+    public AirPodsDeviceViewModel(AirPodsState state, IBluetoothConnectionService connectionService, IDeviceStateManager? stateManager)
     {
-        Address = deviceInfo.Address;
-        ProductId = deviceInfo.ProductId;
-        PairedDeviceId = deviceInfo.PairedDeviceId;
+        Address = state.BleAddress ?? 0;
+        ProductId = state.ProductId;
+        PairedDeviceId = state.PairedDeviceId;
         _connectionService = connectionService ?? throw new ArgumentNullException(nameof(connectionService));
         _stateManager = stateManager;
         
-        UpdateFrom(deviceInfo);
-    }
-
-    /// <summary>
-    /// Updates properties from a device info object.
-    /// Note: Connection state (IsConnected) is NOT updated from discovery data while IsBusy,
-    /// to prevent stale cached values from overwriting state during active operations.
-    /// </summary>
-    public void UpdateFrom(AirPodsDeviceInfo deviceInfo)
-    {
-        Address = deviceInfo.Address;
-        ProductId = deviceInfo.ProductId;
-        PairedDeviceId = deviceInfo.PairedDeviceId;
-        PairedBluetoothAddress = deviceInfo.PairedBluetoothAddress;
-        Model = deviceInfo.Model;
-        DeviceName = deviceInfo.DeviceName;
-        LeftBattery = deviceInfo.LeftBattery;
-        RightBattery = deviceInfo.RightBattery;
-        CaseBattery = deviceInfo.CaseBattery;
-        IsLeftCharging = deviceInfo.IsLeftCharging;
-        IsRightCharging = deviceInfo.IsRightCharging;
-        IsCaseCharging = deviceInfo.IsCaseCharging;
-        IsLeftInEar = deviceInfo.IsLeftInEar;
-        IsRightInEar = deviceInfo.IsRightInEar;
-        IsLidOpen = deviceInfo.IsLidOpen;
-        SignalStrength = deviceInfo.SignalStrength;
-        LastSeen = deviceInfo.LastSeen;
-        
-        // Only update connection state from discovery if we're not busy with an operation.
-        // This prevents stale cached values from overwriting our state during Connect/Disconnect.
-        if (!IsBusy)
-        {
-            IsConnected = deviceInfo.IsConnected;
-        }
-        else
-        {
-            LogDebug($"Skipping IsConnected update (IsBusy=true, discovery says {deviceInfo.IsConnected}, we have {IsConnected})");
-        }
-        
-        // Notify computed properties that depend on PairedDeviceId (not an ObservableProperty)
-        OnPropertyChanged(nameof(Status));
-        OnPropertyChanged(nameof(ShowPairingWarning));
-        OnPropertyChanged(nameof(PrimaryButtonIcon));
-        OnPropertyChanged(nameof(PrimaryButtonTooltip));
-        OnPropertyChanged(nameof(CanExecutePrimaryAction));
-        OnPropertyChanged(nameof(PrimaryActionCommand));
-        OnPropertyChanged(nameof(IsActive));
+        UpdateFromState(state);
     }
 
     /// <summary>
@@ -262,18 +216,18 @@ public partial class AirPodsDeviceViewModel : ObservableObject
     public void RefreshIsActive() => OnPropertyChanged(nameof(IsActive));
 
     /// <summary>
-    /// Updates the ViewModel from the centralized DeviceState.
-    /// This is the preferred update path when using DeviceStateManager.
+    /// Updates the ViewModel from the centralized AirPodsState.
+    /// This is the primary update path when using the new architecture.
     /// </summary>
-    public void UpdateFromState(DeviceState state)
+    public void UpdateFromState(AirPodsState state)
     {
         ArgumentNullException.ThrowIfNull(state);
         
         PairedDeviceId = state.PairedDeviceId;
-        PairedBluetoothAddress = state.PairedBluetoothAddress;
-        Address = state.BleAddress;
-        Model = state.Model;
-        DeviceName = state.DeviceName;
+        PairedBluetoothAddress = state.BluetoothAddress;
+        Address = state.BleAddress ?? 0;
+        Model = state.ModelName;
+        DeviceName = state.Name;
         LeftBattery = state.LeftBattery;
         RightBattery = state.RightBattery;
         CaseBattery = state.CaseBattery;
@@ -286,9 +240,9 @@ public partial class AirPodsDeviceViewModel : ObservableObject
         SignalStrength = state.SignalStrength;
         LastSeen = state.LastSeen;
         
-        // DeviceStateManager handles lockout periods, so we trust its state
+        // State service handles lockout periods, so we trust its state
         IsConnected = state.IsConnected;
-        IsDefaultAudioOutput = state.IsDefaultAudioOutput;
+        IsDefaultAudioOutput = state.IsAudioConnected;
         
         // Notify computed properties
         OnPropertyChanged(nameof(Status));
@@ -350,7 +304,7 @@ public partial class AirPodsDeviceViewModel : ObservableObject
                 case ConnectionResult.DeviceNotFound:
                     LogDebug($"{Model} not found (unpaired?)");
                     PairedDeviceId = null;
-                    _stateManager?.EndConnectionOperation(ProductId, success: false, isConnected: false, isDefaultAudioOutput: false);
+                    _stateManager?.EndConnectionOperation(ProductId, success: false, isConnected: false, isAudioConnected: false);
                     OnPropertyChanged(nameof(Status));
                     break;
                     
@@ -412,7 +366,7 @@ public partial class AirPodsDeviceViewModel : ObservableObject
                 case ConnectionResult.DeviceNotFound:
                     LogDebug($"{Model} not found (unpaired?)");
                     PairedDeviceId = null;
-                    _stateManager?.EndConnectionOperation(ProductId, success: false, isConnected: false, isDefaultAudioOutput: false);
+                    _stateManager?.EndConnectionOperation(ProductId, success: false, isConnected: false, isAudioConnected: false);
                     OnPropertyChanged(nameof(Status));
                     break;
                     
@@ -451,7 +405,7 @@ public partial class AirPodsDeviceViewModel : ObservableObject
             {
                 IsConnected = false;
                 IsDefaultAudioOutput = false;
-                _stateManager?.EndConnectionOperation(ProductId, success: true, isConnected: false, isDefaultAudioOutput: false);
+                _stateManager?.EndConnectionOperation(ProductId, success: true, isConnected: false, isAudioConnected: false);
                 await Task.Delay(1000);
                 LogDebug($"Disconnected from {Model}");
             }

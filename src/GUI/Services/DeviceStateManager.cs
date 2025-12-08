@@ -1,8 +1,8 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading.Tasks;
 using DeviceCommunication.Models;
 using DeviceCommunication.Services;
 using Microsoft.UI.Dispatching;
@@ -10,284 +10,122 @@ using Microsoft.UI.Dispatching;
 namespace GUI.Services;
 
 /// <summary>
-/// Centralized device state manager - single source of truth for all device states.
-/// Handles state updates from multiple sources (BLE, audio, user actions) with proper prioritization.
+/// UI-layer device state manager that wraps <see cref="IAirPodsStateService"/> 
+/// and marshals events to the UI thread.
 /// </summary>
 public sealed class DeviceStateManager : IDeviceStateManager
 {
-    private readonly ConcurrentDictionary<ushort, DeviceState> _devices = new();
-    private readonly IAirPodsDiscoveryService _discoveryService;
-    private readonly IDefaultAudioOutputMonitorService _audioOutputMonitor;
+    private readonly IAirPodsStateService _stateService;
     private readonly DispatcherQueue _dispatcherQueue;
     private readonly object _eventLock = new();
     private bool _disposed;
     
     /// <summary>
-    /// How long to ignore external state updates after a user operation completes.
-    /// This prevents stale cached data from overwriting user-initiated state changes.
-    /// </summary>
-    private static readonly TimeSpan OperationLockoutPeriod = TimeSpan.FromSeconds(3);
-    
-    /// <summary>
     /// Minimum time between state change events for the same device.
-    /// Prevents UI thrashing from rapid updates.
+    /// Prevents UI thrashing from rapid BLE updates.
     /// </summary>
     private static readonly TimeSpan MinEventInterval = TimeSpan.FromMilliseconds(250);
     
-    private readonly ConcurrentDictionary<ushort, DateTime> _lastEventTime = new();
+    private readonly Dictionary<ushort, DateTime> _lastEventTime = new();
 
     public event EventHandler<DeviceStateChangedEventArgs>? DeviceStateChanged;
-    public event EventHandler<DeviceState>? DeviceDiscovered;
+    public event EventHandler<AirPodsState>? DeviceDiscovered;
+    public event EventHandler<AirPodsState>? PairedDeviceNeedsAttention;
 
     public DeviceStateManager(
         DispatcherQueue dispatcherQueue,
-        IAirPodsDiscoveryService discoveryService,
-        IDefaultAudioOutputMonitorService audioOutputMonitor)
+        IAirPodsStateService stateService)
     {
         _dispatcherQueue = dispatcherQueue ?? throw new ArgumentNullException(nameof(dispatcherQueue));
-        _discoveryService = discoveryService ?? throw new ArgumentNullException(nameof(discoveryService));
-        _audioOutputMonitor = audioOutputMonitor ?? throw new ArgumentNullException(nameof(audioOutputMonitor));
+        _stateService = stateService ?? throw new ArgumentNullException(nameof(stateService));
         
-        // Subscribe to discovery events
-        _discoveryService.DeviceDiscovered += OnDiscoveryDeviceDiscovered;
-        _discoveryService.DeviceUpdated += OnDiscoveryDeviceUpdated;
-        
-        // Subscribe to audio output changes
-        _audioOutputMonitor.DefaultAudioOutputChanged += OnAudioOutputChanged;
-    }
-    
-    private void OnDiscoveryDeviceDiscovered(object? sender, AirPodsDeviceInfo deviceInfo)
-    {
-        ReportAdvertisement(deviceInfo);
-    }
-    
-    private void OnDiscoveryDeviceUpdated(object? sender, AirPodsDeviceInfo deviceInfo)
-    {
-        ReportAdvertisement(deviceInfo);
-    }
-    
-    private async void OnAudioOutputChanged(object? sender, DefaultAudioOutputChangedEventArgs args)
-    {
-        // When audio output changes, check each known device to see if it became the default
-        foreach (var device in _devices.Values)
-        {
-            if (!device.PairedBluetoothAddress.HasValue || device.PairedBluetoothAddress.Value == 0)
-                continue;
-                
-            try
-            {
-                var isDefault = await Win32BluetoothConnector.IsDefaultAudioOutputAsync(device.PairedBluetoothAddress.Value);
-                ReportAudioOutputChange(device.PairedBluetoothAddress.Value, isDefault);
-            }
-            catch (Exception ex)
-            {
-                LogDebug($"Error checking audio output for device: {ex.Message}");
-            }
-        }
+        // Subscribe to state service events
+        _stateService.StateChanged += OnStateChanged;
+        _stateService.PairedDeviceNeedsAttention += OnPairedDeviceNeedsAttention;
     }
 
-    public DeviceState? GetDevice(ushort productId)
+    public async Task StartAsync()
     {
-        return _devices.TryGetValue(productId, out var state) ? state : null;
+        await _stateService.StartAsync();
     }
 
-    public IReadOnlyList<DeviceState> GetAllDevices()
+    public void Stop()
     {
-        return _devices.Values.ToList();
+        _stateService.Stop();
     }
 
-    public void ReportAdvertisement(AirPodsDeviceInfo deviceInfo)
+    public AirPodsState? GetDevice(ushort productId)
     {
-        if (_disposed) return;
-        
-        var isNewDevice = !_devices.ContainsKey(deviceInfo.ProductId);
-        
-        var state = _devices.GetOrAdd(deviceInfo.ProductId, _ => new DeviceState
-        {
-            ProductId = deviceInfo.ProductId
-        });
-        
-        // Always update these non-contentious fields
-        state.BleAddress = deviceInfo.Address;
-        state.PairedDeviceId = deviceInfo.PairedDeviceId;
-        state.PairedBluetoothAddress = deviceInfo.PairedBluetoothAddress;
-        state.Model = deviceInfo.Model;
-        state.DeviceName = deviceInfo.DeviceName;
-        state.LeftBattery = deviceInfo.LeftBattery;
-        state.RightBattery = deviceInfo.RightBattery;
-        state.CaseBattery = deviceInfo.CaseBattery;
-        state.IsLeftCharging = deviceInfo.IsLeftCharging;
-        state.IsRightCharging = deviceInfo.IsRightCharging;
-        state.IsCaseCharging = deviceInfo.IsCaseCharging;
-        state.IsLeftInEar = deviceInfo.IsLeftInEar;
-        state.IsRightInEar = deviceInfo.IsRightInEar;
-        state.IsLidOpen = deviceInfo.IsLidOpen;
-        state.SignalStrength = deviceInfo.SignalStrength;
-        state.LastSeen = deviceInfo.LastSeen;
-        
-        // Only update connection state if not in lockout period
-        if (!IsInLockoutPeriod(state))
-        {
-            var connectionChanged = state.IsConnected != deviceInfo.IsConnected;
-            state.IsConnected = deviceInfo.IsConnected;
-            
-            if (connectionChanged)
-            {
-                LogDebug($"Connection state updated from advertisement: {deviceInfo.IsConnected} for {deviceInfo.Model}");
-            }
-        }
-        else
-        {
-            LogDebug($"Ignoring connection state from advertisement (in lockout period): {deviceInfo.IsConnected} for {deviceInfo.Model}");
-        }
-        
-        if (isNewDevice)
-        {
-            LogDebug($"New device discovered: {deviceInfo.Model} (ProductId=0x{deviceInfo.ProductId:X4})");
-            RaiseDeviceDiscovered(state);
-        }
-        
-        RaiseDeviceStateChanged(state, isNewDevice ? DeviceStateChangeReason.Discovered : DeviceStateChangeReason.AdvertisementUpdate);
+        return _stateService.GetDevice(productId);
     }
 
-    public void ReportAudioOutputChange(ulong? bluetoothAddress, bool isDefaultAudioOutput)
+    public IReadOnlyList<AirPodsState> GetAllDevices()
     {
-        if (_disposed) return;
-        
-        // Find device by Bluetooth address
-        DeviceState? targetDevice = null;
-        foreach (var device in _devices.Values)
-        {
-            if (device.PairedBluetoothAddress == bluetoothAddress)
-            {
-                targetDevice = device;
-                break;
-            }
-        }
-        
-        if (targetDevice == null)
-        {
-            LogDebug($"Audio output change for unknown device: {bluetoothAddress:X12}");
-            return;
-        }
-        
-        // Audio output changes are high priority - they're authoritative
-        // If device is the default audio output, it's definitely connected
-        var wasDefaultAudio = targetDevice.IsDefaultAudioOutput;
-        targetDevice.IsDefaultAudioOutput = isDefaultAudioOutput;
-        
-        if (isDefaultAudioOutput && !targetDevice.IsConnected)
-        {
-            // Audio routing implies connection
-            targetDevice.IsConnected = true;
-            LogDebug($"Device {targetDevice.Model} connected (inferred from audio output)");
-        }
-        
-        if (wasDefaultAudio != isDefaultAudioOutput)
-        {
-            LogDebug($"Audio output changed for {targetDevice.Model}: {isDefaultAudioOutput}");
-            RaiseDeviceStateChanged(targetDevice, DeviceStateChangeReason.AudioOutputChanged);
-        }
+        return _stateService.GetAllDevices();
+    }
+
+    public IReadOnlyList<AirPodsState> GetPairedDevices()
+    {
+        return _stateService.GetPairedDevices();
     }
 
     public void BeginConnectionOperation(ushort productId)
     {
-        if (_disposed) return;
-        
-        if (_devices.TryGetValue(productId, out var state))
-        {
-            state.IsOperationInProgress = true;
-            LogDebug($"Connection operation started for {state.Model}");
-        }
+        _stateService.BeginOperation(productId);
     }
 
-    public void EndConnectionOperation(ushort productId, bool success, bool isConnected, bool isDefaultAudioOutput)
+    public void EndConnectionOperation(ushort productId, bool success, bool isConnected, bool isAudioConnected)
     {
-        if (_disposed) return;
-        
-        if (_devices.TryGetValue(productId, out var state))
-        {
-            state.IsOperationInProgress = false;
-            state.LastOperationCompletedAt = DateTime.UtcNow;
-            
-            if (success)
-            {
-                state.IsConnected = isConnected;
-                state.IsDefaultAudioOutput = isDefaultAudioOutput;
-                LogDebug($"Connection operation completed for {state.Model}: Connected={isConnected}, Audio={isDefaultAudioOutput}");
-                RaiseDeviceStateChanged(state, isConnected ? DeviceStateChangeReason.UserConnected : DeviceStateChangeReason.UserDisconnected);
-            }
-            else
-            {
-                LogDebug($"Connection operation failed for {state.Model}");
-                RaiseDeviceStateChanged(state, DeviceStateChangeReason.OperationFailed);
-            }
-        }
+        _stateService.EndOperation(productId, success, isConnected, isAudioConnected);
     }
 
-    public void CleanupStaleDevices(TimeSpan staleThreshold)
+    private void OnStateChanged(object? sender, AirPodsStateChangedEventArgs args)
     {
-        if (_disposed) return;
-        
-        var now = DateTime.Now;
-        var staleDevices = _devices.Values
-            .Where(d => now - d.LastSeen > staleThreshold)
-            .ToList();
-        
-        foreach (var device in staleDevices)
+        var state = args.State;
+        var reason = args.Reason;
+
+        // Check if this is a new device discovery
+        var isDiscovery = reason == AirPodsStateChangeReason.InitialEnumeration 
+            || reason == AirPodsStateChangeReason.PairedDeviceAdded
+            || reason == AirPodsStateChangeReason.UnpairedDeviceSeen;
+
+        // Debounce BLE updates only
+        if (reason == AirPodsStateChangeReason.BleDataUpdated)
         {
-            if (_devices.TryRemove(device.ProductId, out var removed))
+            var now = DateTime.UtcNow;
+            lock (_eventLock)
             {
-                LogDebug($"Removed stale device: {removed.Model}");
-                RaiseDeviceStateChanged(removed, DeviceStateChangeReason.Stale);
+                if (_lastEventTime.TryGetValue(state.ProductId, out var lastTime))
+                {
+                    if (now - lastTime < MinEventInterval)
+                    {
+                        return; // Skip this update
+                    }
+                }
+                _lastEventTime[state.ProductId] = now;
             }
         }
-    }
 
-    private bool IsInLockoutPeriod(DeviceState state)
-    {
-        if (state.IsOperationInProgress)
-            return true;
-        
-        if (state.LastOperationCompletedAt.HasValue)
-        {
-            var elapsed = DateTime.UtcNow - state.LastOperationCompletedAt.Value;
-            return elapsed < OperationLockoutPeriod;
-        }
-        
-        return false;
-    }
-
-    private void RaiseDeviceDiscovered(DeviceState state)
-    {
         _dispatcherQueue.TryEnqueue(() =>
         {
-            DeviceDiscovered?.Invoke(this, state);
-        });
-    }
-
-    private void RaiseDeviceStateChanged(DeviceState state, DeviceStateChangeReason reason)
-    {
-        // Debounce: Skip if we raised an event too recently for this device
-        var now = DateTime.UtcNow;
-        if (_lastEventTime.TryGetValue(state.ProductId, out var lastTime))
-        {
-            if (now - lastTime < MinEventInterval && 
-                reason == DeviceStateChangeReason.AdvertisementUpdate)
+            if (isDiscovery)
             {
-                // Only skip for advertisement updates - user actions and audio changes are important
-                return;
+                DeviceDiscovered?.Invoke(this, state);
             }
-        }
-        _lastEventTime[state.ProductId] = now;
-        
-        _dispatcherQueue.TryEnqueue(() =>
-        {
+
             DeviceStateChanged?.Invoke(this, new DeviceStateChangedEventArgs
             {
                 State = state,
                 Reason = reason
             });
+        });
+    }
+
+    private void OnPairedDeviceNeedsAttention(object? sender, AirPodsState state)
+    {
+        _dispatcherQueue.TryEnqueue(() =>
+        {
+            PairedDeviceNeedsAttention?.Invoke(this, state);
         });
     }
 
@@ -299,12 +137,9 @@ public sealed class DeviceStateManager : IDeviceStateManager
         if (_disposed) return;
         _disposed = true;
         
-        // Unsubscribe from events
-        _discoveryService.DeviceDiscovered -= OnDiscoveryDeviceDiscovered;
-        _discoveryService.DeviceUpdated -= OnDiscoveryDeviceUpdated;
-        _audioOutputMonitor.DefaultAudioOutputChanged -= OnAudioOutputChanged;
+        _stateService.StateChanged -= OnStateChanged;
+        _stateService.PairedDeviceNeedsAttention -= OnPairedDeviceNeedsAttention;
         
-        _devices.Clear();
         _lastEventTime.Clear();
     }
 }

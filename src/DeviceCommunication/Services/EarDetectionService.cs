@@ -19,7 +19,7 @@ namespace DeviceCommunication.Services;
 public sealed class EarDetectionService : IDisposable
 {
     private readonly IGlobalMediaController _mediaController;
-    private readonly IAirPodsDiscoveryService _discoveryService;
+    private readonly IAirPodsStateService _stateService;
     
     /// <summary>
     /// Tracks whether WE paused the media (vs user pausing manually).
@@ -64,14 +64,14 @@ public sealed class EarDetectionService : IDisposable
     /// Creates a new instance of the ear detection service.
     /// </summary>
     /// <param name="mediaController">The media controller for pause/play operations.</param>
-    /// <param name="discoveryService">The discovery service to get ear detection updates.</param>
-    public EarDetectionService(IGlobalMediaController mediaController, IAirPodsDiscoveryService discoveryService)
+    /// <param name="stateService">The state service to get ear detection updates.</param>
+    public EarDetectionService(IGlobalMediaController mediaController, IAirPodsStateService stateService)
     {
         _mediaController = mediaController ?? throw new ArgumentNullException(nameof(mediaController));
-        _discoveryService = discoveryService ?? throw new ArgumentNullException(nameof(discoveryService));
+        _stateService = stateService ?? throw new ArgumentNullException(nameof(stateService));
         
-        // Subscribe to device updates
-        _discoveryService.DeviceUpdated += OnDeviceUpdated;
+        // Subscribe to state changes
+        _stateService.StateChanged += OnStateChanged;
         
         // Default to enabled
         _isEnabled = true;
@@ -96,14 +96,20 @@ public sealed class EarDetectionService : IDisposable
         }
     }
 
-    private async void OnDeviceUpdated(object? sender, AirPodsDeviceInfo deviceInfo)
+    private async void OnStateChanged(object? sender, AirPodsStateChangedEventArgs args)
     {
         if (_disposed || !_isEnabled) return;
 
+        // Only care about BLE data updates (which have ear detection info)
+        if (args.Reason != AirPodsStateChangeReason.BleDataUpdated)
+            return;
+
         try
         {
+            var state = args.State;
+            
             // Consider "in ear" if at least one pod is in ear
-            var isCurrentlyInEar = deviceInfo.IsLeftInEar || deviceInfo.IsRightInEar;
+            var isCurrentlyInEar = state.IsInEar;
             
             // Detect transition: was in ear, now not in ear
             if (_wasInEar && !isCurrentlyInEar)
@@ -184,6 +190,6 @@ public sealed class EarDetectionService : IDisposable
         if (_disposed) return;
         _disposed = true;
 
-        _discoveryService.DeviceUpdated -= OnDeviceUpdated;
+        _stateService.StateChanged -= OnStateChanged;
     }
 }

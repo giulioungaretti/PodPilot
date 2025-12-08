@@ -17,7 +17,6 @@ namespace GUI.ViewModels;
 /// </summary>
 public partial class MainPageViewModel : ObservableObject, IDisposable
 {
-    private readonly IAirPodsDiscoveryService _discoveryService;
     private readonly IBluetoothConnectionService _connectionService;
     private readonly IDeviceStateManager _stateManager;
     private readonly DispatcherQueue _dispatcherQueue;
@@ -30,18 +29,28 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _hasDiscoveredDevices;
 
+    [ObservableProperty]
+    private bool _hasPairedDevices;
+
+    /// <summary>
+    /// Collection of paired devices from Windows Bluetooth settings.
+    /// </summary>
+    public ObservableCollection<AirPodsDeviceViewModel> PairedDevices { get; }
+
+    /// <summary>
+    /// Collection of nearby discovered devices (from BLE advertisements).
+    /// </summary>
     public ObservableCollection<AirPodsDeviceViewModel> DiscoveredDevices { get; }
 
     public MainPageViewModel(
-        IAirPodsDiscoveryService discoveryService,
         IBluetoothConnectionService connectionService,
         IDeviceStateManager stateManager,
         DispatcherQueue dispatcherQueue)
     {
-        _discoveryService = discoveryService;
         _connectionService = connectionService;
         _stateManager = stateManager;
         _dispatcherQueue = dispatcherQueue;
+        PairedDevices = new ObservableCollection<AirPodsDeviceViewModel>();
         DiscoveredDevices = new ObservableCollection<AirPodsDeviceViewModel>();
 
         // Subscribe to DeviceStateManager events (single source of truth)
@@ -53,73 +62,108 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
         _cleanupTimer.Tick += OnCleanupTimerTick;
     }
 
-    public void Initialize()
+    public async Task InitializeAsync()
     {
-        StartScanning();
-        _cleanupTimer.Start();
-    }
-
-    [RelayCommand]
-    private void StartScanning()
-    {
+        // State manager is already started by App.xaml.cs
         IsScanning = true;
-        _discoveryService.StartScanning();
+        _cleanupTimer.Start();
+        
+        // Load paired devices from state manager
+        foreach (var state in _stateManager.GetPairedDevices())
+        {
+            var existing = PairedDevices.FirstOrDefault(d => d.ProductId == state.ProductId);
+            if (existing == null)
+            {
+                var deviceViewModel = new AirPodsDeviceViewModel(state, _connectionService, _stateManager);
+                PairedDevices.Add(deviceViewModel);
+            }
+        }
+        HasPairedDevices = PairedDevices.Count > 0;
+        
+        // Load any existing discovered devices from state manager
+        foreach (var state in _stateManager.GetAllDevices())
+        {
+            var existing = DiscoveredDevices.FirstOrDefault(d => d.ProductId == state.ProductId);
+            if (existing == null)
+            {
+                var deviceViewModel = new AirPodsDeviceViewModel(state, _connectionService, _stateManager);
+                DiscoveredDevices.Add(deviceViewModel);
+            }
+        }
+        HasDiscoveredDevices = DiscoveredDevices.Count > 0;
     }
 
     [RelayCommand]
     private void StopScanning()
     {
         IsScanning = false;
-        _discoveryService.StopScanning();
+        _stateManager.Stop();
     }
 
-    private void OnDeviceDiscovered(object? sender, DeviceState state)
+    private void OnDeviceDiscovered(object? sender, AirPodsState state)
     {
         // Already on UI thread (DeviceStateManager marshals events)
-        var existing = DiscoveredDevices.FirstOrDefault(d => d.ProductId == state.ProductId);
-        if (existing == null)
+        
+        // Add to discovered devices list
+        var existingDiscovered = DiscoveredDevices.FirstOrDefault(d => d.ProductId == state.ProductId);
+        if (existingDiscovered == null)
         {
-            // Create new ViewModel from DeviceState
-            var deviceInfo = CreateDeviceInfoFromState(state);
-            var deviceViewModel = new AirPodsDeviceViewModel(deviceInfo, _connectionService, _stateManager);
+            var deviceViewModel = new AirPodsDeviceViewModel(state, _connectionService, _stateManager);
             DiscoveredDevices.Add(deviceViewModel);
             HasDiscoveredDevices = DiscoveredDevices.Count > 0;
+        }
+        
+        // If this is a paired device, also add to paired devices list
+        if (state.IsPaired)
+        {
+            var existingPaired = PairedDevices.FirstOrDefault(d => d.ProductId == state.ProductId);
+            if (existingPaired == null)
+            {
+                var pairedDeviceViewModel = new AirPodsDeviceViewModel(state, _connectionService, _stateManager);
+                PairedDevices.Add(pairedDeviceViewModel);
+                HasPairedDevices = PairedDevices.Count > 0;
+            }
         }
     }
 
     private void OnDeviceStateChanged(object? sender, DeviceStateChangedEventArgs args)
     {
         // Already on UI thread (DeviceStateManager marshals events)
-        var existing = DiscoveredDevices.FirstOrDefault(d => d.ProductId == args.State.ProductId);
-        if (existing != null)
+        var state = args.State;
+        
+        // Update discovered devices
+        var existingDiscovered = DiscoveredDevices.FirstOrDefault(d => d.ProductId == state.ProductId);
+        if (existingDiscovered != null)
         {
-            existing.UpdateFromState(args.State);
+            existingDiscovered.UpdateFromState(state);
         }
-    }
-
-    private static AirPodsDeviceInfo CreateDeviceInfoFromState(DeviceState state)
-    {
-        return new AirPodsDeviceInfo
+        
+        // Handle paired devices
+        var existingPaired = PairedDevices.FirstOrDefault(d => d.ProductId == state.ProductId);
+        
+        if (state.IsPaired)
         {
-            Address = state.BleAddress,
-            ProductId = state.ProductId,
-            Model = state.Model,
-            DeviceName = state.DeviceName,
-            PairedDeviceId = state.PairedDeviceId,
-            PairedBluetoothAddress = state.PairedBluetoothAddress,
-            LeftBattery = state.LeftBattery,
-            RightBattery = state.RightBattery,
-            CaseBattery = state.CaseBattery,
-            IsLeftCharging = state.IsLeftCharging,
-            IsRightCharging = state.IsRightCharging,
-            IsCaseCharging = state.IsCaseCharging,
-            IsLeftInEar = state.IsLeftInEar,
-            IsRightInEar = state.IsRightInEar,
-            IsLidOpen = state.IsLidOpen,
-            SignalStrength = state.SignalStrength,
-            LastSeen = state.LastSeen,
-            IsConnected = state.IsConnected
-        };
+            // Device is paired - add or update
+            if (existingPaired == null)
+            {
+                var pairedDeviceViewModel = new AirPodsDeviceViewModel(state, _connectionService, _stateManager);
+                PairedDevices.Add(pairedDeviceViewModel);
+                HasPairedDevices = PairedDevices.Count > 0;
+            }
+            else
+            {
+                existingPaired.UpdateFromState(state);
+            }
+        }
+        else
+        {
+            // Device is no longer paired - remove if present
+            if (existingPaired != null)
+            {
+                PairedDevices.Remove(existingPaired);
+                HasPairedDevices = PairedDevices.Count > 0;
+            }
+        }
     }
 
     private void OnCleanupTimerTick(DispatcherQueueTimer sender, object args)
@@ -168,6 +212,5 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
         _cleanupTimer.Stop();
         _stateManager.DeviceDiscovered -= OnDeviceDiscovered;
         _stateManager.DeviceStateChanged -= OnDeviceStateChanged;
-        _discoveryService.Dispose();
     }
 }

@@ -17,7 +17,7 @@ public sealed partial class NotificationWindow : WinUIEx.WindowEx
 
     public event EventHandler? OpenMainWindowRequested;
 
-    public NotificationWindow(AirPodsDeviceInfo deviceInfo, IBluetoothConnectionService connectionService)
+    public NotificationWindow(AirPodsState state, IBluetoothConnectionService connectionService)
     {
         InitializeComponent();
 
@@ -40,7 +40,7 @@ public sealed partial class NotificationWindow : WinUIEx.WindowEx
         Activated += OnWindowActivated;
 
         // Create device view model and bind to card
-        _deviceViewModel = new AirPodsDeviceViewModel(deviceInfo, connectionService);
+        _deviceViewModel = new AirPodsDeviceViewModel(state, connectionService);
         DeviceCard.Device = _deviceViewModel;
 
         // Size window to content after layout

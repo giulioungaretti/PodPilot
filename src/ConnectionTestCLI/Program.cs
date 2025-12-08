@@ -6,6 +6,7 @@ namespace ConnectionTestCLI;
 
 /// <summary>
 /// Simple CLI to test AirPods connection with out-of-case precondition.
+/// Uses the unified AirPodsStateService architecture.
 /// Automatically connects when at least one pod is out of the case.
 /// </summary>
 class Program
@@ -20,29 +21,33 @@ class Program
         Console.WriteLine("This CLI automatically connects when pods are out of the case.\n");
         Console.WriteLine("Scanning for AirPods...\n");
 
+        // Create services using the modern architecture
         using var advertisementWatcher = new AdvertisementWatcher();
-        var pairedDeviceLookupService = new PairedDeviceLookupService();
-        using var discoveryService = new SimpleAirPodsDiscoveryService(advertisementWatcher, pairedDeviceLookupService);
-        using var connectionService = new BluetoothConnectionService();
+        using var bleDataProvider = new BleDataProvider(advertisementWatcher);
+        using var pairedDeviceWatcher = new PairedDeviceWatcher();
+        using var audioMonitor = new DefaultAudioOutputMonitorService();
+        using var stateService = new AirPodsStateService(pairedDeviceWatcher, bleDataProvider, audioMonitor);
+        var connector = new Win32BluetoothConnector();
 
-        // Subscribe to discovery events
-        discoveryService.DeviceDiscovered += async (sender, device) =>
+        // Subscribe to state changes
+        stateService.StateChanged += async (sender, args) =>
         {
-            Console.WriteLine("\n[NEW DEVICE DISCOVERED]");
-            DisplayDeviceStatus(device);
-            await TryAutoConnectAsync(device, connectionService);
+            var state = args.State;
+            
+            // Only show updates for paired devices
+            if (!state.IsPaired) return;
+            
+            var isNew = args.Reason == AirPodsStateChangeReason.PairedDeviceAdded 
+                     || args.Reason == AirPodsStateChangeReason.InitialEnumeration;
+            
+            Console.WriteLine($"\n[{(isNew ? "NEW DEVICE" : "STATUS UPDATE")}]");
+            DisplayDeviceStatus(state);
+            await TryAutoConnectAsync(state, connector);
         };
 
-        // Subscribe to update events
-        discoveryService.DeviceUpdated += async (sender, device) =>
-        {
-            Console.WriteLine("\n[STATUS UPDATE]");
-            DisplayDeviceStatus(device);
-            await TryAutoConnectAsync(device, connectionService);
-        };
-
-        // Start discovery
-        discoveryService.StartScanning();
+        // Start the unified state service
+        audioMonitor.Start();
+        await stateService.StartAsync();
 
         Console.WriteLine("Waiting for AirPods... Take them out of the case to auto-connect.");
         Console.WriteLine("Press 'r' to reset (allow reconnect), or 'q' to quit.\n");
@@ -71,35 +76,38 @@ class Program
         }
 
         Console.WriteLine("\nExiting...");
+        stateService.Stop();
+        audioMonitor.Stop();
     }
 
-    static void DisplayDeviceStatus(AirPodsDeviceInfo device)
+    static void DisplayDeviceStatus(AirPodsState state)
     {
         Console.WriteLine("\n----------------------------------------");
-        Console.WriteLine($"[DEVICE] {device.Model}");
-        Console.WriteLine($"  Device Name: {device.DeviceName}");
-        Console.WriteLine($"  Product ID: 0x{device.ProductId:X4}");
-        Console.WriteLine($"  Paired Device ID: {device.PairedDeviceId ?? "Not found"}");
-        Console.WriteLine($"  Signal: {device.SignalStrength} dBm");
-        Console.WriteLine($"  Last Seen: {device.LastSeen:HH:mm:ss}");
+        Console.WriteLine($"[DEVICE] {state.ModelName}");
+        Console.WriteLine($"  Device Name: {state.Name}");
+        Console.WriteLine($"  Product ID: 0x{state.ProductId:X4}");
+        Console.WriteLine($"  Paired Device ID: {state.PairedDeviceId ?? "Not found"}");
+        Console.WriteLine($"  Signal: {state.SignalStrength} dBm");
+        Console.WriteLine($"  Last Seen: {state.LastSeen:HH:mm:ss}");
         
         // Battery section
         Console.WriteLine("\n  Battery:");
-        Console.WriteLine($"    Left:  {(device.LeftBattery.HasValue ? $"{device.LeftBattery}%" : "--")}{(device.IsLeftCharging ? " (charging)" : "")}");
-        Console.WriteLine($"    Right: {(device.RightBattery.HasValue ? $"{device.RightBattery}%" : "--")}{(device.IsRightCharging ? " (charging)" : "")}");
-        Console.WriteLine($"    Case:  {(device.CaseBattery.HasValue ? $"{device.CaseBattery}%" : "--")}{(device.IsCaseCharging ? " (charging)" : "")}");
+        Console.WriteLine($"    Left:  {(state.LeftBattery.HasValue ? $"{state.LeftBattery}%" : "--")}{(state.IsLeftCharging ? " (charging)" : "")}");
+        Console.WriteLine($"    Right: {(state.RightBattery.HasValue ? $"{state.RightBattery}%" : "--")}{(state.IsRightCharging ? " (charging)" : "")}");
+        Console.WriteLine($"    Case:  {(state.CaseBattery.HasValue ? $"{state.CaseBattery}%" : "--")}{(state.IsCaseCharging ? " (charging)" : "")}");
         
         // Status section
         Console.WriteLine("\n  Status:");
-        Console.WriteLine($"    Lid Open: {(device.IsLidOpen ? "Yes" : "No")}");
-        Console.WriteLine($"    Left in Ear: {(device.IsLeftInEar ? "Yes" : "No")}");
-        Console.WriteLine($"    Right in Ear: {(device.IsRightInEar ? "Yes" : "No")}");
-        Console.WriteLine($"    Both Pods in Case: {(device.IsBothPodsInCase ? "YES (blocked)" : "No")}");
-        Console.WriteLine($"    Connected: {(device.IsConnected ? "Yes" : "No")}");
+        Console.WriteLine($"    Lid Open: {(state.IsLidOpen ? "Yes" : "No")}");
+        Console.WriteLine($"    Left in Ear: {(state.IsLeftInEar ? "Yes" : "No")}");
+        Console.WriteLine($"    Right in Ear: {(state.IsRightInEar ? "Yes" : "No")}");
+        Console.WriteLine($"    Both Pods in Case: {(state.IsBothPodsInCase ? "YES (blocked)" : "No")}");
+        Console.WriteLine($"    Connected: {(state.IsConnected ? "Yes" : "No")}");
+        Console.WriteLine($"    Audio Active: {(state.IsAudioConnected ? "Yes" : "No")}");
         
         // Connection precondition check
         Console.WriteLine("\n  Connection Eligibility:");
-        if (device.IsReadyForConnection)
+        if (state.IsReadyForConnection)
         {
             Console.WriteLine("    [OK] READY - At least one pod is out of the case");
         }
@@ -111,7 +119,7 @@ class Program
         Console.WriteLine("----------------------------------------");
     }
 
-    static async Task TryAutoConnectAsync(AirPodsDeviceInfo device, BluetoothConnectionService connectionService)
+    static async Task TryAutoConnectAsync(AirPodsState state, Win32BluetoothConnector connector)
     {
         // Check if we should attempt connection
         lock (_lock)
@@ -124,15 +132,15 @@ class Program
             }
 
             // Check precondition: at least one pod must be out of the case
-            if (!device.IsReadyForConnection)
+            if (!state.IsReadyForConnection)
             {
                 Console.WriteLine("\n[AUTO-CONNECT] Waiting... both pods are still in the case.");
                 return;
             }
 
-            if (string.IsNullOrEmpty(device.PairedDeviceId))
+            if (!state.BluetoothAddress.HasValue)
             {
-                Console.WriteLine("\n[AUTO-CONNECT] WARNING: No paired device ID found. Ensure AirPods are paired in Windows Settings.");
+                Console.WriteLine("\n[AUTO-CONNECT] WARNING: No Bluetooth address found. Ensure AirPods are paired in Windows Settings.");
                 return;
             }
 
@@ -145,38 +153,29 @@ class Program
             Console.WriteLine("[AUTO-CONNECT] INITIATING CONNECTION");
             Console.WriteLine("========================================");
             Console.WriteLine("  [OK] Precondition passed: At least one pod is out of the case");
-            Console.WriteLine($"  Device: {device.DeviceName}");
-            Console.WriteLine($"  Device ID: {device.PairedDeviceId}");
+            Console.WriteLine($"  Device: {state.Name}");
+            Console.WriteLine($"  Bluetooth Address: {state.BluetoothAddress:X12}");
             Console.WriteLine($"  Timestamp: {DateTime.Now:HH:mm:ss.fff}");
             Console.WriteLine("========================================\n");
 
-            Console.WriteLine("[AUTO-CONNECT] Calling BluetoothConnectionService.ConnectByDeviceIdAsync...\n");
+            Console.WriteLine("[AUTO-CONNECT] Calling Win32BluetoothConnector.ConnectAudioDeviceAsync...\n");
 
-            var result = await connectionService.ConnectByDeviceIdAsync(device.PairedDeviceId);
+            var success = await connector.ConnectAudioDeviceAsync(state.BluetoothAddress.Value);
 
             Console.WriteLine("\n========================================");
             Console.WriteLine("[AUTO-CONNECT] CONNECTION RESULT");
             Console.WriteLine("========================================");
 
-            switch (result)
+            if (success)
             {
-                case ConnectionResult.Connected:
-                    Console.WriteLine("  [SUCCESS] CONNECTION SUCCESSFUL!");
-                    Console.WriteLine("  Audio should now route to AirPods.");
-                    lock (_lock) { _connectionAttempted = true; }
-                    break;
-                case ConnectionResult.NeedsPairing:
-                    Console.WriteLine("  [FAILED] Device needs to be paired first.");
-                    Console.WriteLine("  Open Windows Settings > Bluetooth & devices to pair.");
-                    break;
-                case ConnectionResult.DeviceNotFound:
-                    Console.WriteLine("  [FAILED] Device not found.");
-                    Console.WriteLine("  Ensure AirPods are nearby and case lid is open.");
-                    break;
-                case ConnectionResult.Failed:
-                    Console.WriteLine("  [FAILED] Connection failed.");
-                    Console.WriteLine("  Try again or connect manually via Windows Settings.");
-                    break;
+                Console.WriteLine("  [SUCCESS] CONNECTION SUCCESSFUL!");
+                Console.WriteLine("  Audio should now route to AirPods.");
+                lock (_lock) { _connectionAttempted = true; }
+            }
+            else
+            {
+                Console.WriteLine("  [FAILED] Connection failed.");
+                Console.WriteLine("  Try again or connect manually via Windows Settings.");
             }
 
             Console.WriteLine("========================================\n");

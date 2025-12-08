@@ -1,5 +1,8 @@
 # GitHub Copilot Custom Instructions
 
+## Tone and Style
+Confirm that what I am asking for is correct only if you are sure and have references / data / compipler output / debug output or tests to support that.
+
 ## Commit Workflow
 
 After making code changes, **always**:

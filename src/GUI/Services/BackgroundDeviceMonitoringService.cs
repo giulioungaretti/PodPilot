@@ -7,13 +7,12 @@ using Microsoft.UI.Dispatching;
 namespace GUI.Services;
 
 /// <summary>
-/// Background service that monitors for paired AirPods devices being advertised.
+/// Background service that monitors for paired AirPods devices.
 /// Uses DeviceStateManager as the single source of truth for device state.
 /// Tracks device connection state and allows re-notification after disconnect/reconnect cycles.
 /// </summary>
 public sealed class BackgroundDeviceMonitoringService : IBackgroundDeviceMonitoringService
 {
-    private readonly IAirPodsDiscoveryService _discoveryService;
     private readonly IDeviceStateManager _stateManager;
     private readonly ConcurrentDictionary<ushort, DeviceConnectionState> _deviceStates;
     private readonly DispatcherQueue _dispatcherQueue;
@@ -24,34 +23,32 @@ public sealed class BackgroundDeviceMonitoringService : IBackgroundDeviceMonitor
     /// </summary>
     private static readonly TimeSpan MinNotificationInterval = TimeSpan.FromSeconds(5);
 
-    public event EventHandler<AirPodsDeviceInfo>? PairedDeviceDetected;
+    public event EventHandler<AirPodsState>? PairedDeviceDetected;
 
     public BackgroundDeviceMonitoringService(
-        DispatcherQueue dispatcherQueue, 
-        IAirPodsDiscoveryService discoveryService,
+        DispatcherQueue dispatcherQueue,
         IDeviceStateManager stateManager)
     {
         ArgumentNullException.ThrowIfNull(dispatcherQueue);
-        ArgumentNullException.ThrowIfNull(discoveryService);
         ArgumentNullException.ThrowIfNull(stateManager);
         
         _dispatcherQueue = dispatcherQueue;
-        _discoveryService = discoveryService;
         _stateManager = stateManager;
         _deviceStates = new ConcurrentDictionary<ushort, DeviceConnectionState>();
         
         // Subscribe to DeviceStateManager events (single source of truth)
         _stateManager.DeviceStateChanged += OnDeviceStateChanged;
+        _stateManager.PairedDeviceNeedsAttention += OnPairedDeviceNeedsAttention;
     }
 
     public void Start()
     {
-        _discoveryService.StartScanning();
+        // State manager is already started by App.xaml.cs
     }
 
     public void Stop()
     {
-        _discoveryService.StopScanning();
+        _stateManager.Stop();
     }
 
     private void OnDeviceStateChanged(object? sender, DeviceStateChangedEventArgs args)
@@ -59,7 +56,7 @@ public sealed class BackgroundDeviceMonitoringService : IBackgroundDeviceMonitor
         var state = args.State;
         
         // Only track paired devices
-        if (string.IsNullOrEmpty(state.PairedDeviceId))
+        if (!state.IsPaired)
             return;
 
         // Get or create device tracking state
@@ -74,7 +71,7 @@ public sealed class BackgroundDeviceMonitoringService : IBackgroundDeviceMonitor
         // Detect connection transitions
         bool shouldNotify = false;
         
-        if (args.Reason == DeviceStateChangeReason.Discovered && isConnected)
+        if (args.Reason == AirPodsStateChangeReason.PairedDeviceAdded && isConnected)
         {
             // New device discovered and connected
             shouldNotify = true;
@@ -97,7 +94,14 @@ public sealed class BackgroundDeviceMonitoringService : IBackgroundDeviceMonitor
         }
     }
 
-    private void NotifyDeviceDetected(DeviceState state, DeviceConnectionState trackingState)
+    private void OnPairedDeviceNeedsAttention(object? sender, AirPodsState state)
+    {
+        // Get or create device tracking state
+        var trackingState = _deviceStates.GetOrAdd(state.ProductId, _ => new DeviceConnectionState());
+        NotifyDeviceDetected(state, trackingState);
+    }
+
+    private void NotifyDeviceDetected(AirPodsState state, DeviceConnectionState trackingState)
     {
         // Only notify once per connection session
         if (trackingState.HasNotified)
@@ -114,31 +118,8 @@ public sealed class BackgroundDeviceMonitoringService : IBackgroundDeviceMonitor
         trackingState.HasNotified = true;
         trackingState.LastNotificationTime = now;
 
-        // Create DeviceInfo from state
-        var deviceInfo = new AirPodsDeviceInfo
-        {
-            Address = state.BleAddress,
-            ProductId = state.ProductId,
-            Model = state.Model,
-            DeviceName = state.DeviceName,
-            PairedDeviceId = state.PairedDeviceId,
-            PairedBluetoothAddress = state.PairedBluetoothAddress,
-            LeftBattery = state.LeftBattery,
-            RightBattery = state.RightBattery,
-            CaseBattery = state.CaseBattery,
-            IsLeftCharging = state.IsLeftCharging,
-            IsRightCharging = state.IsRightCharging,
-            IsCaseCharging = state.IsCaseCharging,
-            IsLeftInEar = state.IsLeftInEar,
-            IsRightInEar = state.IsRightInEar,
-            IsLidOpen = state.IsLidOpen,
-            SignalStrength = state.SignalStrength,
-            LastSeen = state.LastSeen,
-            IsConnected = state.IsConnected
-        };
-
         // Already on UI thread (DeviceStateManager marshals events)
-        PairedDeviceDetected?.Invoke(this, deviceInfo);
+        PairedDeviceDetected?.Invoke(this, state);
     }
 
     /// <summary>
@@ -158,6 +139,7 @@ public sealed class BackgroundDeviceMonitoringService : IBackgroundDeviceMonitor
             return;
 
         _stateManager.DeviceStateChanged -= OnDeviceStateChanged;
+        _stateManager.PairedDeviceNeedsAttention -= OnPairedDeviceNeedsAttention;
         _deviceStates.Clear();
         _disposed = true;
     }

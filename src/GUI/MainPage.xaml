@@ -33,6 +33,33 @@
                                FontSize="14" />
                 </StackPanel>
 
+                <!-- Paired Devices Section -->
+                <StackPanel Spacing="16"
+                            Visibility="{x:Bind ViewModel.HasPairedDevices, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <Grid>
+                        <TextBlock Text="🔗 Paired Devices" 
+                                   FontSize="20" 
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center"
+                                   FontFamily="Segoe UI Emoji" />
+                    </Grid>
+
+                    <!-- Paired Devices List -->
+                    <ItemsControl ItemsSource="{x:Bind ViewModel.PairedDevices, Mode=OneWay}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="viewModels:AirPodsDeviceViewModel">
+                                <controls:AirPodsCard Device="{x:Bind Mode=OneWay}" 
+                                                      Margin="0,0,0,16"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                </StackPanel>
+
                 <!-- Discovered Devices Section -->
                 <StackPanel Spacing="16">
                     <Grid>
