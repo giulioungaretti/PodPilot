@@ -189,29 +189,90 @@ flowchart TD
 
 ## Checklist
 
-### Cleanup
-- [ ] Delete SimpleAirPodsDiscoveryService.cs + interface
-- [ ] Delete PairedDeviceLookupService.cs + interface
-- [ ] Delete `AirPodsDeviceAggregator.cs`
-- [ ] Delete AirPodsDeviceInfo.cs
-- [ ] Remove all usages of deleted types
+### Phase 1: Cleanup ✅ COMPLETE
+- [x] Delete SimpleAirPodsDiscoveryService.cs + interface
+- [x] Delete PairedDeviceLookupService.cs + interface
+- [x] Delete `AirPodsDeviceAggregator.cs` (was already empty/removed)
+- [x] Delete BluetoothDeviceHelper.cs
+- [x] Delete DeviceStateChange.cs
+- [x] Delete AirPodsDeviceInfo.cs
+- [x] Remove all usages of deleted types
+- [x] Build passes (0 errors)
+- [x] All 42 tests pass
 
-### Interfaces
-- [ ] Create `IAudioControlService`
-- [ ] Create `IAudioPolicyProvider`
-- [ ] Implement `AudioControlService`
-- [ ] Implement `AudioPolicyProvider`
+### Phase 1b: Model Reorganization ✅ COMPLETE
+- [x] Create `Models/AirPodsState.cs` (unified state + `AirPodsStateChangeReason` + `AirPodsStateChangedEventArgs`)
+- [x] Create `Models/BleEnrichmentData.cs` (BLE advertisement data)
+- [x] Update `Models/PairedDeviceInfo.cs` (add `ProductId`, `PairedDeviceChangedEventArgs`, `PairedDeviceChangeType`)
+- [x] Remove embedded records from interface files
+- [x] Add `using DeviceCommunication.Models;` to all consuming files
+
+### Phase 2: Interface Alignment (Optional)
+- [ ] Create `IAudioControlService` interface for mocking Win32BluetoothConnector
+- [ ] Create `IAudioPolicyProvider` interface with `AutoPausePolicy` enum
+- [ ] Implement `AudioControlService` wrapper
+- [ ] Implement `AudioPolicyProvider` with default config
 - [ ] Wire into DI
 
-### State
-- [ ] Extend `AirPodsState` if needed (e.g., `PreviousAudioOutputId`)
-- [ ] Move debounce to `BleDataProvider` (optional)
+### Phase 3: State Service Refinement (Optional)
+- [ ] Extend `AirPodsState` with `PreviousAudioOutputId` for route fallback
+- [ ] Move debounce to `BleDataProvider` (currently in `DeviceStateManager`)
+- [ ] Add structured logging via `ILogger<T>` injection
 
-### Testing
-- [ ] Unit tests for `AirPodsStateService`
-- [ ] Test doubles for core interfaces
-- [ ] Validate MinimalCLI
+### Phase 4: DI & CLI (Optional)
+- [ ] Update MinimalCLI to use DI instead of manual `new`
+- [ ] Create test doubles / mocks for `IBleDataProvider`, `IPairedDeviceWatcher`
+
+### Phase 5: Testing (Optional)
+- [ ] Unit tests for `AirPodsStateService` correlation logic
+- [ ] Integration tests with fake BLE/paired event sequences
+- [ ] Validate MinimalCLI works with refactored services
 
 ---
 
-This revised plan builds on the existing solid foundation, removes redundant code, and fills the remaining gaps (interfaces for mocking, policy abstraction). Ready to proceed with implementation when you give the go-ahead.
+## Commit History
+
+| Commit | Description |
+|--------|-------------|
+| `b5a00f0` | refactor(services): simplify architecture with unified AirPodsStateService |
+
+---
+
+## Current Architecture
+
+```
+DeviceCommunication/
+├── Models/
+│   ├── AirPodsState.cs          # Unified state + enums + event args
+│   ├── BleEnrichmentData.cs     # BLE advertisement data
+│   └── PairedDeviceInfo.cs      # Paired device + event args + enum
+├── Services/
+│   ├── IAirPodsStateService.cs  # Unified state aggregator interface
+│   ├── AirPodsStateService.cs   # Implementation
+│   ├── IBleDataProvider.cs      # BLE enrichment interface
+│   ├── BleDataProvider.cs       # Implementation
+│   ├── IPairedDeviceWatcher.cs  # Windows API watcher interface
+│   ├── PairedDeviceWatcher.cs   # Implementation
+│   ├── IBluetoothConnectionService.cs
+│   ├── BluetoothConnectionService.cs
+│   ├── Win32BluetoothConnector.cs
+│   ├── IDefaultAudioOutputMonitorService.cs
+│   ├── DefaultAudioOutputMonitorService.cs
+│   ├── EarDetectionService.cs
+│   ├── IGlobalMediaController.cs
+│   └── GlobalMediaController.cs
+└── ...
+
+GUI/
+├── Services/
+│   ├── IDeviceStateManager.cs   # UI-layer wrapper interface
+│   ├── DeviceStateManager.cs    # Wraps IAirPodsStateService + UI thread
+│   ├── IBackgroundDeviceMonitoringService.cs
+│   ├── BackgroundDeviceMonitoringService.cs
+│   └── TrayIconService.cs
+└── ...
+```
+
+---
+
+This plan is now updated with Phase 1 and Phase 1b complete. Phases 2-5 are optional enhancements.
