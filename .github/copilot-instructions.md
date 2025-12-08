@@ -45,8 +45,14 @@ After making code changes, **always**:
 
 4. **Wait for user approval** before executing the commit command.
 
-5. **execut the commit command** with the proposed message if approved, but use the this author information
-    AuthorName = "Giulio Ungaretti",
-    AuthorEmail = "giulio.ungaretti@gmail.com",
+5. **Execute the commit command** with the proposed message if approved. Set both author AND committer using environment variables to avoid dual-author issues:
+
+   ```powershell
+   $env:GIT_AUTHOR_NAME = "Giulio Ungaretti"
+   $env:GIT_AUTHOR_EMAIL = "giulio.ungaretti@gmail.com"
+   $env:GIT_COMMITTER_NAME = "Giulio Ungaretti"
+   $env:GIT_COMMITTER_EMAIL = "giulio.ungaretti@gmail.com"
+   git commit -m "<message>"
+   ```
 
 
