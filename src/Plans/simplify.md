@@ -207,12 +207,13 @@ flowchart TD
 - [x] Remove embedded records from interface files
 - [x] Add `using DeviceCommunication.Models;` to all consuming files
 
-### Phase 2: Interface Alignment (Optional)
-- [ ] Create `IAudioControlService` interface for mocking Win32BluetoothConnector
-- [ ] Create `IAudioPolicyProvider` interface with `AutoPausePolicy` enum
-- [ ] Implement `AudioControlService` wrapper
-- [ ] Implement `AudioPolicyProvider` with default config
-- [ ] Wire into DI
+### Phase 2: Interface Alignment ✅ ALREADY DONE
+> **Note:** `IBluetoothConnectionService` already exists and wraps `Win32BluetoothConnector`.
+> The GUI uses this interface, so mocking is already possible. No new interface needed.
+
+- [x] `IBluetoothConnectionService` exists - exposes `ConnectByDeviceIdAsync`, `DisconnectByDeviceIdAsync`
+- [ ] Create `IAudioPolicyProvider` interface with `AutoPausePolicy` enum (optional)
+- [ ] Implement `AudioPolicyProvider` with default config (optional)
 
 ### Phase 3: State Service Refinement (Optional)
 - [ ] Extend `AirPodsState` with `PreviousAudioOutputId` for route fallback
