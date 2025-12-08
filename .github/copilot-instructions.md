@@ -44,3 +44,9 @@ After making code changes, **always**:
    - `docs(readme): update installation instructions`
 
 4. **Wait for user approval** before executing the commit command.
+
+5. **execut the commit command** with the proposed message if approved, but use the this author information
+    AuthorName = "Giulio Ungaretti",
+    AuthorEmail = "giulio.ungaretti@gmail.com",
+
+

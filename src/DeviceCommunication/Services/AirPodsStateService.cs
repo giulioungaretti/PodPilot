@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using DeviceCommunication.Apple;
 using DeviceCommunication.Models;
+using Microsoft.Extensions.Logging;
 
 namespace DeviceCommunication.Services;
 
@@ -11,6 +11,7 @@ namespace DeviceCommunication.Services;
 /// </summary>
 public sealed class AirPodsStateService : IAirPodsStateService
 {
+    private readonly ILogger<AirPodsStateService> _logger;
     private readonly IPairedDeviceWatcher _pairedDeviceWatcher;
     private readonly IBleDataProvider _bleDataProvider;
     private readonly IDefaultAudioOutputMonitorService _audioOutputMonitor;
@@ -28,10 +29,12 @@ public sealed class AirPodsStateService : IAirPodsStateService
     public event EventHandler<AirPodsState>? AirPodsRemovedFromCase;
 
     public AirPodsStateService(
+        ILogger<AirPodsStateService> logger,
         IPairedDeviceWatcher pairedDeviceWatcher,
         IBleDataProvider bleDataProvider,
         IDefaultAudioOutputMonitorService audioOutputMonitor)
     {
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _pairedDeviceWatcher = pairedDeviceWatcher ?? throw new ArgumentNullException(nameof(pairedDeviceWatcher));
         _bleDataProvider = bleDataProvider ?? throw new ArgumentNullException(nameof(bleDataProvider));
         _audioOutputMonitor = audioOutputMonitor ?? throw new ArgumentNullException(nameof(audioOutputMonitor));
@@ -395,8 +398,7 @@ public sealed class AirPodsStateService : IAirPodsStateService
         });
     }
 
-    [Conditional("DEBUG")]
-    private static void LogDebug(string message) => Debug.WriteLine($"[AirPodsStateService] {message}");
+    private void LogDebug(string message) => _logger.LogDebug("{Message}", message);
 
     #endregion
 

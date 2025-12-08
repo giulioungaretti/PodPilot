@@ -6,6 +6,7 @@ using GUI.Services;
 using GUI.ViewModels;
 using GUI.Windows;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 
@@ -44,6 +45,13 @@ public partial class App : Application
     private static IServiceProvider ConfigureServices(DispatcherQueue dispatcherQueue)
     {
         var services = new ServiceCollection();
+
+        // Logging - outputs to VS Debug Output window
+        services.AddLogging(builder =>
+        {
+            builder.AddDebug();
+            builder.SetMinimumLevel(LogLevel.Debug);
+        });
 
         // Infrastructure
         services.AddSingleton(dispatcherQueue);

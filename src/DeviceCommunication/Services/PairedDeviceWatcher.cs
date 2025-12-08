@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using DeviceCommunication.Apple;
 using DeviceCommunication.Models;
+using Microsoft.Extensions.Logging;
 using Windows.Devices.Bluetooth;
 using Windows.Devices.Enumeration;
 
@@ -13,6 +13,7 @@ namespace DeviceCommunication.Services;
 /// </summary>
 public sealed class PairedDeviceWatcher : IPairedDeviceWatcher
 {
+    private readonly ILogger<PairedDeviceWatcher> _logger;
     private readonly ConcurrentDictionary<ushort, PairedDeviceInfo> _devicesByProductId = new();
     private readonly ConcurrentDictionary<string, ushort> _productIdByDeviceId = new();
     private DeviceWatcher? _watcher;
@@ -30,6 +31,11 @@ public sealed class PairedDeviceWatcher : IPairedDeviceWatcher
 
     public event EventHandler<PairedDeviceChangedEventArgs>? DeviceChanged;
     public event EventHandler? EnumerationCompleted;
+
+    public PairedDeviceWatcher(ILogger<PairedDeviceWatcher> logger)
+    {
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
 
     public async Task StartAsync()
     {
@@ -220,8 +226,7 @@ public sealed class PairedDeviceWatcher : IPairedDeviceWatcher
         });
     }
 
-    [Conditional("DEBUG")]
-    private static void LogDebug(string message) => Debug.WriteLine($"[PairedDeviceWatcher] {message}");
+    private void LogDebug(string message) => _logger.LogDebug("{Message}", message);
 
     public void Dispose()
     {

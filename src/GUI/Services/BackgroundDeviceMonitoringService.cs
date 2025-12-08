@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using DeviceCommunication.Models;
 using DeviceCommunication.Services;
+using Microsoft.Extensions.Logging;
 using Microsoft.UI.Dispatching;
 
 namespace GUI.Services;
@@ -13,6 +14,7 @@ namespace GUI.Services;
 /// </summary>
 public sealed class BackgroundDeviceMonitoringService : IBackgroundDeviceMonitoringService
 {
+    private readonly ILogger<BackgroundDeviceMonitoringService> _logger;
     private readonly IDeviceStateManager _stateManager;
     private readonly ConcurrentDictionary<ushort, DeviceConnectionState> _deviceStates;
     private readonly DispatcherQueue _dispatcherQueue;
@@ -26,12 +28,15 @@ public sealed class BackgroundDeviceMonitoringService : IBackgroundDeviceMonitor
     public event EventHandler<AirPodsState>? PairedDeviceDetected;
 
     public BackgroundDeviceMonitoringService(
+        ILogger<BackgroundDeviceMonitoringService> logger,
         DispatcherQueue dispatcherQueue,
         IDeviceStateManager stateManager)
     {
+        ArgumentNullException.ThrowIfNull(logger);
         ArgumentNullException.ThrowIfNull(dispatcherQueue);
         ArgumentNullException.ThrowIfNull(stateManager);
         
+        _logger = logger;
         _dispatcherQueue = dispatcherQueue;
         _stateManager = stateManager;
         _deviceStates = new ConcurrentDictionary<ushort, DeviceConnectionState>();

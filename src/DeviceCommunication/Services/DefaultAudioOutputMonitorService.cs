@@ -1,4 +1,4 @@
-using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 using Windows.Media.Devices;
 
 namespace DeviceCommunication.Services;
@@ -9,6 +9,7 @@ namespace DeviceCommunication.Services;
 /// </summary>
 public sealed class DefaultAudioOutputMonitorService : IDefaultAudioOutputMonitorService
 {
+    private readonly ILogger<DefaultAudioOutputMonitorService> _logger;
     private bool _isStarted;
     private bool _disposed;
     private string? _currentDefaultDeviceId;
@@ -18,6 +19,11 @@ public sealed class DefaultAudioOutputMonitorService : IDefaultAudioOutputMonito
 
     /// <inheritdoc />
     public string? CurrentDefaultDeviceId => _currentDefaultDeviceId;
+
+    public DefaultAudioOutputMonitorService(ILogger<DefaultAudioOutputMonitorService> logger)
+    {
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
 
     /// <inheritdoc />
     public void Start()
@@ -119,11 +125,7 @@ public sealed class DefaultAudioOutputMonitorService : IDefaultAudioOutputMonito
         }
     }
 
-    [Conditional("DEBUG")]
-    private static void LogDebug(string message)
-    {
-        Debug.WriteLine($"[DefaultAudioOutputMonitorService] {message}");
-    }
+    private void LogDebug(string message) => _logger.LogDebug("{Message}", message);
 
     /// <inheritdoc />
     public void Dispose()

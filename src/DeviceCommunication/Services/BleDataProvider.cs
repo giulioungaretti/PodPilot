@@ -1,8 +1,8 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using DeviceCommunication.Advertisement;
 using DeviceCommunication.Apple;
 using DeviceCommunication.Models;
+using Microsoft.Extensions.Logging;
 
 namespace DeviceCommunication.Services;
 
@@ -12,6 +12,7 @@ namespace DeviceCommunication.Services;
 /// </summary>
 public sealed class BleDataProvider : IBleDataProvider
 {
+    private readonly ILogger<BleDataProvider> _logger;
     private readonly IAdvertisementWatcher _watcher;
     private readonly ConcurrentDictionary<ushort, BleEnrichmentData> _dataByProductId = new();
     private readonly TimeSpan _dataTimeout = TimeSpan.FromMinutes(5);
@@ -22,9 +23,11 @@ public sealed class BleDataProvider : IBleDataProvider
     /// <summary>
     /// Creates a new BLE data provider.
     /// </summary>
+    /// <param name="logger">The logger instance.</param>
     /// <param name="watcher">The BLE advertisement watcher.</param>
-    public BleDataProvider(IAdvertisementWatcher watcher)
+    public BleDataProvider(ILogger<BleDataProvider> logger, IAdvertisementWatcher watcher)
     {
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _watcher = watcher ?? throw new ArgumentNullException(nameof(watcher));
         _watcher.AdvertisementReceived += OnAdvertisementReceived;
     }
@@ -111,8 +114,7 @@ public sealed class BleDataProvider : IBleDataProvider
         DataReceived?.Invoke(this, enrichmentData);
     }
 
-    [Conditional("DEBUG")]
-    private static void LogDebug(string message) => Debug.WriteLine($"[BleDataProvider] {message}");
+    private void LogDebug(string message) => _logger.LogDebug("{Message}", message);
 
     public void Dispose()
     {

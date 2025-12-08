@@ -22,9 +22,7 @@ class Program
             Console.WriteLine("3. scan for airpods");
             Console.WriteLine("4. connect to bluetooth device");
             Console.WriteLine("5. complete airpods monitor (basic)");
-            Console.WriteLine("6. reactive airpods monitor [LEGACY - battery signature grouping]");
             Console.WriteLine("7. bluetooth diagnostics (debug connection issues)");
-            Console.WriteLine("8. resolve airpods paired address [LEGACY - multi-tier matching]");
             Console.WriteLine("9. list all bluetooth devices with model info [RECOMMENDED]");
             Console.WriteLine("0. exit");
             Console.Write("\nchoice: ");

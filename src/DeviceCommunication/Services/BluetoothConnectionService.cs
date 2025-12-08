@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 using Windows.Devices.Bluetooth;
 using Windows.Devices.Enumeration;
 
@@ -42,12 +42,17 @@ public enum ConnectionResult
 /// </remarks>
 public sealed class BluetoothConnectionService : IBluetoothConnectionService
 {
+    private readonly ILogger<BluetoothConnectionService> _logger;
     private readonly ConcurrentDictionary<string, BluetoothDevice> _connectedDevices = new();
     private readonly Win32BluetoothConnector _win32Connector = new();
     private bool _disposed;
 
-    [Conditional("DEBUG")]
-    private static void LogDebug(string message) => Debug.WriteLine($"[BtConnection] {message}");
+    public BluetoothConnectionService(ILogger<BluetoothConnectionService> logger)
+    {
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
+
+    private void LogDebug(string message) => _logger.LogDebug("{Message}", message);
 
     /// <summary>
     /// Attempts to connect to a Bluetooth device using its Windows device ID.
@@ -287,9 +292,8 @@ public sealed class BluetoothConnectionService : IBluetoothConnectionService
             var uri = new Uri("ms-settings:bluetooth");
             return await Windows.System.Launcher.LaunchUriAsync(uri);
         }
-        catch (Exception ex)
+        catch
         {
-            LogDebug($"Failed to open settings: {ex.Message}");
             return false;
         }
     }

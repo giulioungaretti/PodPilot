@@ -1,5 +1,5 @@
-using System.Diagnostics;
 using DeviceCommunication.Models;
+using Microsoft.Extensions.Logging;
 
 namespace DeviceCommunication.Services;
 
@@ -18,6 +18,7 @@ namespace DeviceCommunication.Services;
 /// </remarks>
 public sealed class EarDetectionService : IDisposable
 {
+    private readonly ILogger<EarDetectionService> _logger;
     private readonly IGlobalMediaController _mediaController;
     private readonly IAirPodsStateService _stateService;
     
@@ -56,17 +57,22 @@ public sealed class EarDetectionService : IDisposable
                 _wePausedIt = false;
             }
             
-            Debug.WriteLine($"[EarDetectionService] Ear detection {(_isEnabled ? "enabled" : "disabled")}");
+            _logger.LogDebug("Ear detection {Status}", _isEnabled ? "enabled" : "disabled");
         }
     }
 
     /// <summary>
     /// Creates a new instance of the ear detection service.
     /// </summary>
+    /// <param name="logger">The logger instance.</param>
     /// <param name="mediaController">The media controller for pause/play operations.</param>
     /// <param name="stateService">The state service to get ear detection updates.</param>
-    public EarDetectionService(IGlobalMediaController mediaController, IAirPodsStateService stateService)
+    public EarDetectionService(
+        ILogger<EarDetectionService> logger,
+        IGlobalMediaController mediaController,
+        IAirPodsStateService stateService)
     {
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _mediaController = mediaController ?? throw new ArgumentNullException(nameof(mediaController));
         _stateService = stateService ?? throw new ArgumentNullException(nameof(stateService));
         
@@ -88,11 +94,11 @@ public sealed class EarDetectionService : IDisposable
         
         if (initialized)
         {
-            Debug.WriteLine("[EarDetectionService] Initialized successfully");
+            _logger.LogDebug("Initialized successfully");
         }
         else
         {
-            Debug.WriteLine("[EarDetectionService] Failed to initialize media controller");
+            _logger.LogWarning("Failed to initialize media controller");
         }
     }
 
@@ -127,7 +133,7 @@ public sealed class EarDetectionService : IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[EarDetectionService] Error processing ear detection: {ex.Message}");
+            _logger.LogError(ex, "Error processing ear detection");
         }
     }
 
@@ -137,24 +143,24 @@ public sealed class EarDetectionService : IDisposable
     /// </summary>
     private async Task HandleRemovedFromEarAsync()
     {
-        Debug.WriteLine("[EarDetectionService] AirPods removed from ear");
+        _logger.LogDebug("AirPods removed from ear");
         
         // Only pause if something is playing
         if (_mediaController.IsPlaying)
         {
-            Debug.WriteLine("[EarDetectionService] Pausing media...");
+            _logger.LogDebug("Pausing media...");
             var success = await _mediaController.PauseAsync();
             
             if (success)
             {
                 // Remember that WE paused it
                 _wePausedIt = true;
-                Debug.WriteLine("[EarDetectionService] Media paused (we will resume when put back)");
+                _logger.LogDebug("Media paused (we will resume when put back)");
             }
         }
         else
         {
-            Debug.WriteLine("[EarDetectionService] Nothing playing, no action needed");
+            _logger.LogDebug("Nothing playing, no action needed");
         }
     }
 
@@ -164,24 +170,24 @@ public sealed class EarDetectionService : IDisposable
     /// </summary>
     private async Task HandlePutInEarAsync()
     {
-        Debug.WriteLine("[EarDetectionService] AirPods put in ear");
+        _logger.LogDebug("AirPods put in ear");
         
         // Only resume if WE paused it (not if user manually paused)
         if (_wePausedIt)
         {
-            Debug.WriteLine("[EarDetectionService] Resuming media (we paused it earlier)...");
+            _logger.LogDebug("Resuming media (we paused it earlier)...");
             var success = await _mediaController.PlayAsync();
             
             if (success)
             {
                 // Clear the flag - we've resumed
                 _wePausedIt = false;
-                Debug.WriteLine("[EarDetectionService] Media resumed");
+                _logger.LogDebug("Media resumed");
             }
         }
         else
         {
-            Debug.WriteLine("[EarDetectionService] Not resuming - we didn't pause it");
+            _logger.LogDebug("Not resuming - we didn't pause it");
         }
     }
 

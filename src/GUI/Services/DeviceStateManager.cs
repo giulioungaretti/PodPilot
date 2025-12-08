@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using DeviceCommunication.Models;
 using DeviceCommunication.Services;
+using Microsoft.Extensions.Logging;
 using Microsoft.UI.Dispatching;
 
 namespace GUI.Services;
@@ -15,6 +15,7 @@ namespace GUI.Services;
 /// </summary>
 public sealed class DeviceStateManager : IDeviceStateManager
 {
+    private readonly ILogger<DeviceStateManager> _logger;
     private readonly IAirPodsStateService _stateService;
     private readonly DispatcherQueue _dispatcherQueue;
     private readonly object _eventLock = new();
@@ -33,9 +34,11 @@ public sealed class DeviceStateManager : IDeviceStateManager
     public event EventHandler<AirPodsState>? PairedDeviceNeedsAttention;
 
     public DeviceStateManager(
+        ILogger<DeviceStateManager> logger,
         DispatcherQueue dispatcherQueue,
         IAirPodsStateService stateService)
     {
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _dispatcherQueue = dispatcherQueue ?? throw new ArgumentNullException(nameof(dispatcherQueue));
         _stateService = stateService ?? throw new ArgumentNullException(nameof(stateService));
         
@@ -129,8 +132,7 @@ public sealed class DeviceStateManager : IDeviceStateManager
         });
     }
 
-    [Conditional("DEBUG")]
-    private static void LogDebug(string message) => Debug.WriteLine($"[DeviceStateManager] {message}");
+    private void LogDebug(string message) => _logger.LogDebug("{Message}", message);
 
     public void Dispose()
     {

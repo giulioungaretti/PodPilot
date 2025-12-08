@@ -1,0 +1,1 @@
+# Previous AI and Human tasks, summary. If I was a start programmer my git commit history would tell the same story.

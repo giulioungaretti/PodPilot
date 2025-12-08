@@ -1,6 +1,7 @@
 using DeviceCommunication.Advertisement;
 using DeviceCommunication.Models;
 using DeviceCommunication.Services;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ConnectionTestCLI;
 
@@ -23,10 +24,18 @@ class Program
 
         // Create services using the modern architecture
         using var advertisementWatcher = new AdvertisementWatcher();
-        using var bleDataProvider = new BleDataProvider(advertisementWatcher);
-        using var pairedDeviceWatcher = new PairedDeviceWatcher();
-        using var audioMonitor = new DefaultAudioOutputMonitorService();
-        using var stateService = new AirPodsStateService(pairedDeviceWatcher, bleDataProvider, audioMonitor);
+        using var bleDataProvider = new BleDataProvider(
+            NullLogger<BleDataProvider>.Instance, 
+            advertisementWatcher);
+        using var pairedDeviceWatcher = new PairedDeviceWatcher(
+            NullLogger<PairedDeviceWatcher>.Instance);
+        using var audioMonitor = new DefaultAudioOutputMonitorService(
+            NullLogger<DefaultAudioOutputMonitorService>.Instance);
+        using var stateService = new AirPodsStateService(
+            NullLogger<AirPodsStateService>.Instance,
+            pairedDeviceWatcher, 
+            bleDataProvider, 
+            audioMonitor);
         var connector = new Win32BluetoothConnector();
 
         // Subscribe to state changes
