@@ -1,10 +1,11 @@
 # Current Plan
 
-No active plan. Previous work archived to [2025-12-08_architecture-refactoring-complete.md](2025-12-08_architecture-refactoring-complete.md).
+I seen in the GUI that a device is duplicated in the Paired and Discovered devices, we shoul be able to test this independently of the UI.
+Write a test that shows this behaviour so we can explore the root cause.
 
 ## Optional Next Steps
 
-From the completed refactoring, these optional enhancements remain:
+From the completed refactoring plans\Previous.md, these optional enhancements remain:
 
 ### Audio Policy Configuration
 - [ ] Create `IAudioPolicyProvider` interface with `AutoPausePolicy` enum
