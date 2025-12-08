@@ -1,7 +1,6 @@
-﻿using DeviceCommunication.Adapter;
+﻿using CLI.Services;
 using DeviceCommunication.Advertisement;
 using DeviceCommunication.Apple;
-using DeviceCommunication.Diagnostics;
 using DeviceCommunication.Services;
 using Windows.Devices.Bluetooth;
 using Windows.Devices.Enumeration;

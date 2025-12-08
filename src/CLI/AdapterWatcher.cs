@@ -2,7 +2,7 @@
 
 using Windows.Devices.Radios;
 
-namespace DeviceCommunication.Adapter;
+namespace CLI.Services;
 
 /// <summary>
 /// Monitors and reports changes to the Bluetooth adapter's state.
