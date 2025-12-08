@@ -19,8 +19,6 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
 {
     private readonly IBluetoothConnectionService _connectionService;
     private readonly IDeviceStateManager _stateManager;
-    private readonly DispatcherQueue _dispatcherQueue;
-    private readonly DispatcherQueueTimer _cleanupTimer;
     private bool _isProcessingCleanup;
 
     [ObservableProperty]
@@ -44,29 +42,23 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
 
     public MainPageViewModel(
         IBluetoothConnectionService connectionService,
-        IDeviceStateManager stateManager,
-        DispatcherQueue dispatcherQueue)
+        IDeviceStateManager stateManager
+        )
     {
         _connectionService = connectionService;
         _stateManager = stateManager;
-        _dispatcherQueue = dispatcherQueue;
         PairedDevices = new ObservableCollection<AirPodsDeviceViewModel>();
         DiscoveredDevices = new ObservableCollection<AirPodsDeviceViewModel>();
 
         // Subscribe to DeviceStateManager events (single source of truth)
         _stateManager.DeviceDiscovered += OnDeviceDiscovered;
         _stateManager.DeviceStateChanged += OnDeviceStateChanged;
-
-        _cleanupTimer = _dispatcherQueue.CreateTimer();
-        _cleanupTimer.Interval = TimeSpan.FromSeconds(5);
-        _cleanupTimer.Tick += OnCleanupTimerTick;
     }
 
     public async Task InitializeAsync()
     {
         // State manager is already started by App.xaml.cs
         IsScanning = true;
-        _cleanupTimer.Start();
         
         // Load paired devices from state manager
         foreach (var state in _stateManager.GetPairedDevices())
@@ -166,7 +158,7 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
         }
     }
 
-    private void OnCleanupTimerTick(DispatcherQueueTimer sender, object args)
+    public void OnCleanupTimerTick(DispatcherQueueTimer sender, object args)
     {
         if (_isProcessingCleanup)
         {
@@ -209,7 +201,6 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
-        _cleanupTimer.Stop();
         _stateManager.DeviceDiscovered -= OnDeviceDiscovered;
         _stateManager.DeviceStateChanged -= OnDeviceStateChanged;
     }
