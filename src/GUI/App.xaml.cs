@@ -73,7 +73,13 @@ public partial class App : Application
         services.AddSingleton<IAirPodsStateService, AirPodsStateService>();
 
         // Mid-level services
-        services.AddSingleton<IBluetoothConnectionService, BluetoothConnectionService>();
+        // Connection strategy: Simple (AudioPlaybackConnection only) or Full (with Win32 fallbacks)
+        // TODO: Make this configurable via app settings
+        const ConnectionStrategy connectionStrategy = ConnectionStrategy.Full;
+        services.AddSingleton<IBluetoothConnectionService>(sp => 
+            new BluetoothConnectionService(
+                sp.GetRequiredService<ILogger<BluetoothConnectionService>>(),
+                connectionStrategy));
         
         // Platform abstraction services
         services.AddSingleton<IAudioOutputService, AudioOutputService>();

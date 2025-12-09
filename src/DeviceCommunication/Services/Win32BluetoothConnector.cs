@@ -23,7 +23,7 @@ namespace DeviceCommunication.Services;
 /// audio profiles that use L2CAP/AVDTP protocols (like A2DP for audio streaming).
 /// </para>
 /// </remarks>
-public sealed class Win32BluetoothConnector
+public sealed class Win32BluetoothConnector : IBluetoothConnector
 {
     #region Win32 P/Invoke Declarations
 
@@ -124,12 +124,9 @@ public sealed class Win32BluetoothConnector
     {
         try
         {
-            Debug.WriteLine($"");
-            Debug.WriteLine($"[Win32BluetoothConnector] ========================================");
             Debug.WriteLine($"[Win32BluetoothConnector] === CONNECT AUDIO DEVICE START ===");
             Debug.WriteLine($"[Win32BluetoothConnector] Target address: {address:X12}");
             Debug.WriteLine($"[Win32BluetoothConnector] Timestamp: {DateTime.Now:HH:mm:ss.fff}");
-            Debug.WriteLine($"[Win32BluetoothConnector] ========================================");
 
             // Strategy 1: Try AudioPlaybackConnection API (most reliable, same as Windows Settings)
             Debug.WriteLine($"[Win32BluetoothConnector] ");
@@ -138,10 +135,8 @@ public sealed class Win32BluetoothConnector
             if (audioPlaybackConnected)
             {
                 Debug.WriteLine($"[Win32BluetoothConnector] RESULT: Strategy 1 succeeded - AudioPlaybackConnection established");
-                Debug.WriteLine($"[Win32BluetoothConnector] ========================================");
                 return true;
             }
-
             // Strategy 2: Fallback to BluetoothSetServiceState to activate audio profiles
             Debug.WriteLine($"[Win32BluetoothConnector] ");
             Debug.WriteLine($"[Win32BluetoothConnector] >>> STRATEGY 2: BluetoothSetServiceState API <<<");
@@ -152,7 +147,6 @@ public sealed class Win32BluetoothConnector
             {
                 Debug.WriteLine($"[Win32BluetoothConnector] RESULT: Strategy 2 succeeded - Audio services enabled via Win32 API");
                 Debug.WriteLine($"[Win32BluetoothConnector] NOTE: Audio may take 1-2 seconds to route to the device");
-                Debug.WriteLine($"[Win32BluetoothConnector] ========================================");
                 return true;
             }
 
@@ -181,10 +175,7 @@ public sealed class Win32BluetoothConnector
                 }
             }
 
-            Debug.WriteLine($"[Win32BluetoothConnector] RESULT: All strategies failed for {address:X12}");
-            Debug.WriteLine($"[Win32BluetoothConnector] TROUBLESHOOTING:");
-            Debug.WriteLine($"[Win32BluetoothConnector]   1. Ensure device is paired in Windows Settings first");
-            Debug.WriteLine($"[Win32BluetoothConnector]   2. Try connecting manually once via Windows Settings");
+
             if (likelyConnectedElsewhere)
             {
                 Debug.WriteLine($"[Win32BluetoothConnector]   3. >>> LIKELY ISSUE: Device is connected to another device (phone/tablet)");
@@ -194,8 +185,6 @@ public sealed class Win32BluetoothConnector
             {
                 Debug.WriteLine($"[Win32BluetoothConnector]   3. Ensure AirPods are not connected to another device");
             }
-            Debug.WriteLine($"[Win32BluetoothConnector]   4. Try opening/closing the AirPods case");
-            Debug.WriteLine($"[Win32BluetoothConnector] ========================================");
             return false;
         }
         catch (Exception ex)
@@ -203,7 +192,7 @@ public sealed class Win32BluetoothConnector
             Debug.WriteLine($"[Win32BluetoothConnector] EXCEPTION in ConnectAudioDeviceAsync: {ex.Message}");
             Debug.WriteLine($"[Win32BluetoothConnector] Exception type: {ex.GetType().Name}");
             Debug.WriteLine($"[Win32BluetoothConnector] Stack trace: {ex.StackTrace}");
-            Debug.WriteLine($"[Win32BluetoothConnector] ========================================");
+
             return false;
         }
     }

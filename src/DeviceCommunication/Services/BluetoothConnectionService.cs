@@ -10,32 +10,59 @@ namespace DeviceCommunication.Services;
 /// Service for managing Bluetooth device connections using Windows device IDs.
 /// </summary>
 /// <remarks>
-/// <para><strong>Hybrid Connection Strategy:</strong></para>
+/// <para><strong>Configurable Connection Strategy:</strong></para>
 /// <para>
-/// This service uses a hybrid approach combining Win32 and WinRT APIs for maximum reliability:
+/// This service supports two connection strategies, configurable at construction time:
 /// </para>
-/// <list type="number">
-/// <item><description><strong>Win32 Bluetooth APIs</strong> (InTheHand.Net.Bluetooth) - Primary method that directly
-/// activates Bluetooth profiles (A2DP, HFP, HSP) similar to Windows Settings</description></item>
-/// <item><description><strong>Windows Runtime APIs</strong> - Fallback method that triggers connections indirectly
-/// via device property access</description></item>
+/// <list type="bullet">
+/// <item><description><strong>Simple</strong> - Uses only the AudioPlaybackConnection API (Windows 10 2004+).
+/// Clean and modern, but may not work with all devices or scenarios.</description></item>
+/// <item><description><strong>Full</strong> - Uses a hybrid approach with multiple fallbacks (Win32 APIs, 
+/// RFCOMM tricks, WinRT property access) for maximum compatibility.</description></item>
 /// </list>
 /// <para>
-/// The Win32 approach provides reliability comparable to the Windows Settings "Connect" button
-/// by directly interfacing with the Windows Bluetooth stack. For best results, ensure devices
-/// are already paired via Windows Settings before attempting connection.
+/// The strategy can be configured via app settings. Default is <see cref="ConnectionStrategy.Full"/>
+/// for maximum compatibility.
 /// </para>
 /// </remarks>
 public sealed class BluetoothConnectionService : IBluetoothConnectionService
 {
     private readonly ILogger<BluetoothConnectionService> _logger;
     private readonly ConcurrentDictionary<string, BluetoothDevice> _connectedDevices = new();
-    private readonly Win32BluetoothConnector _win32Connector = new();
+    private readonly IBluetoothConnector _connector;
+    private readonly ConnectionStrategy _strategy;
     private bool _disposed;
 
+    /// <summary>
+    /// Gets the current connection strategy being used.
+    /// </summary>
+    public ConnectionStrategy Strategy => _strategy;
+
+    /// <summary>
+    /// Creates a new BluetoothConnectionService with the default Full strategy.
+    /// </summary>
     public BluetoothConnectionService(ILogger<BluetoothConnectionService> logger)
+        : this(logger, ConnectionStrategy.Full)
+    {
+    }
+
+    /// <summary>
+    /// Creates a new BluetoothConnectionService with the specified connection strategy.
+    /// </summary>
+    /// <param name="logger">The logger instance.</param>
+    /// <param name="strategy">The connection strategy to use.</param>
+    public BluetoothConnectionService(ILogger<BluetoothConnectionService> logger, ConnectionStrategy strategy)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _strategy = strategy;
+        _connector = strategy switch
+        {
+            ConnectionStrategy.Simple => new SimpleBluetoothConnector(),
+            ConnectionStrategy.Full => new Win32BluetoothConnector(),
+            _ => new Win32BluetoothConnector()
+        };
+        
+        LogDebug($"Initialized with {strategy} connection strategy");
     }
 
     private void LogDebug(string message) => _logger.LogDebug("{Message}", message);
@@ -93,20 +120,20 @@ public sealed class BluetoothConnectionService : IBluetoothConnectionService
 
             var deviceAddress = device.BluetoothAddress;
 
-            // Strategy 1: Try Win32 Bluetooth APIs first (most reliable for audio devices)
-            bool win32Connected = false;
+            // Use the configured connector strategy
+            bool connectorConnected = false;
             try
             {
-                win32Connected = await _win32Connector.ConnectAudioDeviceAsync(deviceAddress);
-                LogDebug($"Win32 connect: {(win32Connected ? "OK" : "failed")}");
+                connectorConnected = await _connector.ConnectAudioDeviceAsync(deviceAddress);
+                LogDebug($"{_strategy} connect: {(connectorConnected ? "OK" : "failed")}");
             }
             catch (Exception ex)
             {
-                LogDebug($"Win32 exception: {ex.Message}");
+                LogDebug($"{_strategy} connector exception: {ex.Message}");
             }
 
-            // Strategy 2: Fallback to WinRT property access (may trigger connection in some cases)
-            if (!win32Connected)
+            // For Full strategy: Fallback to WinRT property access (may trigger connection in some cases)
+            if (!connectorConnected && _strategy == ConnectionStrategy.Full)
             {
                 try
                 {
@@ -131,14 +158,17 @@ public sealed class BluetoothConnectionService : IBluetoothConnectionService
             }
 
             // Give Windows a moment to establish the connection
-            var waitTime = win32Connected ? 1000 : 2000;
+            var waitTime = connectorConnected ? 1000 : 2000;
             await Task.Delay(waitTime);
 
-            // Verify audio endpoint exists after connection
-            var audioEndpointExists = await Win32BluetoothConnector.VerifyAudioEndpointExistsAsync(deviceAddress);
-            if (!audioEndpointExists && win32Connected)
+            // Verify audio endpoint exists after connection (Full strategy only has this helper)
+            if (_strategy == ConnectionStrategy.Full)
             {
-                LogDebug("Warning: connected but no audio endpoint found");
+                var audioEndpointExists = await Win32BluetoothConnector.VerifyAudioEndpointExistsAsync(deviceAddress);
+                if (!audioEndpointExists && connectorConnected)
+                {
+                    LogDebug("Warning: connected but no audio endpoint found");
+                }
             }
 
             // Store reference (dispose any existing)
@@ -152,7 +182,7 @@ public sealed class BluetoothConnectionService : IBluetoothConnectionService
                 });
 
             // Check if connection was established
-            var result = device.ConnectionStatus == BluetoothConnectionStatus.Connected || win32Connected
+            var result = device.ConnectionStatus == BluetoothConnectionStatus.Connected || connectorConnected
                 ? ConnectionResult.Connected
                 : ConnectionResult.Failed;
 
@@ -188,8 +218,8 @@ public sealed class BluetoothConnectionService : IBluetoothConnectionService
         try
         {
             var deviceAddress = device.BluetoothAddress;
-            bool win32Disconnected = await _win32Connector.DisconnectAudioDeviceAsync(deviceAddress);
-            LogDebug($"Disconnect {deviceAddress:X12}: {(win32Disconnected ? "OK" : "failed")}");
+            bool disconnected = await _connector.DisconnectAudioDeviceAsync(deviceAddress);
+            LogDebug($"Disconnect {deviceAddress:X12}: {(disconnected ? "OK" : "failed")}");
 
             await Task.Delay(500);
 
@@ -198,7 +228,7 @@ public sealed class BluetoothConnectionService : IBluetoothConnectionService
                 removedDevice.Dispose();
             }
 
-            return win32Disconnected;
+            return disconnected;
         }
         catch (Exception ex)
         {
