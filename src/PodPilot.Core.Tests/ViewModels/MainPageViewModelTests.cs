@@ -66,14 +66,11 @@ public class MainPageViewModelTests : IAsyncLifetime, IDisposable
     [Fact]
     public async Task InitializeAsync_LoadsPairedDevices()
     {
-        // Arrange: Simulate a paired device being added via the real event flow
         var pairedDevice = AirPodsStateServiceTestHelpers.CreatePairedDevice(isConnected: false);
         AirPodsStateServiceTestHelpers.RaisePairedDeviceAdded(_fixture.PairedDeviceWatcher, pairedDevice);
 
-        // Act
         await _viewModel.InitializeAsync();
 
-        // Assert
         _viewModel.PairedDevices.Should().ContainSingle();
         _viewModel.HasPairedDevices.Should().BeTrue();
     }
@@ -81,12 +78,8 @@ public class MainPageViewModelTests : IAsyncLifetime, IDisposable
     [Fact]
     public async Task InitializeAsync_WhenNoPairedDevices_HasPairedDevicesIsFalse()
     {
-        // Arrange: No devices added
-
-        // Act
         await _viewModel.InitializeAsync();
 
-        // Assert
         _viewModel.PairedDevices.Should().BeEmpty();
         _viewModel.HasPairedDevices.Should().BeFalse();
     }
@@ -94,15 +87,12 @@ public class MainPageViewModelTests : IAsyncLifetime, IDisposable
     [Fact]
     public async Task InitializeAsync_LoadsDiscoveredDevices()
     {
-        // Arrange: Simulate an unpaired device seen via BLE
         var bleData = AirPodsStateServiceTestHelpers.CreateBleData(
             productId: AirPodsStateServiceTestHelpers.AirPods2ProductId);
         AirPodsStateServiceTestHelpers.RaiseBleDataReceived(_fixture.BleDataProvider, bleData);
 
-        // Act
         await _viewModel.InitializeAsync();
 
-        // Assert
         _viewModel.DiscoveredDevices.Should().ContainSingle();
         _viewModel.HasDiscoveredDevices.Should().BeTrue();
     }
@@ -110,30 +100,24 @@ public class MainPageViewModelTests : IAsyncLifetime, IDisposable
     [Fact]
     public async Task OnDeviceDiscovered_AddsNewDeviceToDiscoveredDevices()
     {
-        // Arrange
         await _viewModel.InitializeAsync();
 
-        // Act: Simulate an unpaired device appearing via BLE
         var bleData = AirPodsStateServiceTestHelpers.CreateBleData(
             productId: AirPodsStateServiceTestHelpers.AirPodsPro2ProductId);
         AirPodsStateServiceTestHelpers.RaiseBleDataReceived(_fixture.BleDataProvider, bleData);
 
-        // Assert
         _viewModel.DiscoveredDevices.Should().ContainSingle(d => d.ProductId == AirPodsStateServiceTestHelpers.AirPodsPro2ProductId);
     }
 
     [Fact]
     public async Task OnDeviceDiscovered_WhenPaired_AddsToPairedDevices()
     {
-        // Arrange
         await _viewModel.InitializeAsync();
 
-        // Act: Simulate a paired device being added
         var pairedDevice = AirPodsStateServiceTestHelpers.CreatePairedDevice(
             productId: AirPodsStateServiceTestHelpers.AirPodsPro2ProductId);
         AirPodsStateServiceTestHelpers.RaisePairedDeviceAdded(_fixture.PairedDeviceWatcher, pairedDevice);
 
-        // Assert
         _viewModel.PairedDevices.Should().ContainSingle(d => d.ProductId == AirPodsStateServiceTestHelpers.AirPodsPro2ProductId);
         _viewModel.DiscoveredDevices.Should().ContainSingle(d => d.ProductId == AirPodsStateServiceTestHelpers.AirPodsPro2ProductId);
     }
@@ -141,7 +125,6 @@ public class MainPageViewModelTests : IAsyncLifetime, IDisposable
     [Fact]
     public async Task OnDeviceStateChanged_UpdatesExistingDiscoveredDevice()
     {
-        // Arrange: Add a device first
         await _viewModel.InitializeAsync();
         var bleData = AirPodsStateServiceTestHelpers.CreateBleData(
             productId: AirPodsStateServiceTestHelpers.AirPodsPro2ProductId,
@@ -151,16 +134,13 @@ public class MainPageViewModelTests : IAsyncLifetime, IDisposable
         _viewModel.DiscoveredDevices.Should().ContainSingle();
         _viewModel.DiscoveredDevices.First().LeftBattery.Should().Be(50);
 
-        // Act: Update with new BLE data (simulate time passing to avoid debounce)
         var updatedBleData = AirPodsStateServiceTestHelpers.CreateBleData(
             productId: AirPodsStateServiceTestHelpers.AirPodsPro2ProductId,
             leftBattery: 80);
         
-        // Wait for debounce period to pass
         await Task.Delay(300);
         AirPodsStateServiceTestHelpers.RaiseBleDataReceived(_fixture.BleDataProvider, updatedBleData);
 
-        // Assert
         _viewModel.DiscoveredDevices.Should().ContainSingle();
         _viewModel.DiscoveredDevices.First().LeftBattery.Should().Be(80);
     }
@@ -168,21 +148,17 @@ public class MainPageViewModelTests : IAsyncLifetime, IDisposable
     [Fact]
     public async Task StopScanningCommand_SetsIsScanningToFalse()
     {
-        // Arrange
         await _viewModel.InitializeAsync();
         _viewModel.IsScanning.Should().BeTrue();
 
-        // Act
         _viewModel.StopScanningCommand.Execute(null);
 
-        // Assert
         _viewModel.IsScanning.Should().BeFalse();
     }
 
     [Fact]
     public async Task OnCleanupTimerTick_RemovesStaleDevices()
     {
-        // Arrange
         await _viewModel.InitializeAsync();
         var bleData = AirPodsStateServiceTestHelpers.CreateBleData(
             productId: AirPodsStateServiceTestHelpers.AirPodsPro2ProductId);
@@ -190,10 +166,11 @@ public class MainPageViewModelTests : IAsyncLifetime, IDisposable
 
         _viewModel.DiscoveredDevices.Should().ContainSingle();
 
-        // Act: Cleanup should not remove fresh devices
         _viewModel.OnCleanupTimerTick();
 
-        // Assert: Device should still be present (not stale yet since just created)
         _viewModel.DiscoveredDevices.Should().ContainSingle();
     }
+
+    [Fact]
+
 }
