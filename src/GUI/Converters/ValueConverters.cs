@@ -52,15 +52,11 @@ public class DeviceStatusToVisibilityConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, string language)
     {
-        if (value is DeviceStatus boolValue)
-            switch (boolValue)
-                {
-                case DeviceStatus.Unpaired:
-                    return Visibility.Collapsed;
-                default:
-                    return Visibility.Visible;
-            }
-        return Visibility.Visible;
+        return value switch
+        {
+            DeviceStatus.Unpaired => Visibility.Collapsed,
+            _ => Visibility.Visible,
+        };
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, string language)
