@@ -103,7 +103,7 @@ public partial class AirPodsDeviceViewModel : ObservableObject
     // ===== Computed Properties =====
 
     /// <summary>
-    /// Gets whether the device is currently active (seen within last 5 seconds).
+    /// Gets whether the device is currently active (seen within 5 seconds).
     /// </summary>
     public bool IsActive => (DateTime.Now - LastSeen).TotalSeconds < 5;
 
@@ -137,10 +137,10 @@ public partial class AirPodsDeviceViewModel : ObservableObject
     /// </summary>
     public string PrimaryButtonIcon => Status switch
     {
-        DeviceStatus.Unpaired => "?",
-        DeviceStatus.Disconnected => "??",
-        DeviceStatus.Connected => "??",
-        DeviceStatus.AudioActive => "?",
+        DeviceStatus.Unpaired => "🔗",
+        DeviceStatus.Disconnected => "🛜 ",
+        DeviceStatus.Connected => "🔉",
+        DeviceStatus.AudioActive => "⛔",
         _ => "?"
     };
 

@@ -1,6 +1,7 @@
 using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Data;
+using PodPilot.Core.Models;
 
 namespace GUI.Converters;
 
@@ -39,6 +40,27 @@ public class BoolToVisibilityConverter : IValueConverter
         if (value is bool boolValue)
             return boolValue ? Visibility.Visible : Visibility.Collapsed;
         return Visibility.Collapsed;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+public class DeviceStatusToVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        if (value is DeviceStatus boolValue)
+            switch (boolValue)
+                {
+                case DeviceStatus.Unpaired:
+                    return Visibility.Collapsed;
+                default:
+                    return Visibility.Visible;
+            }
+        return Visibility.Visible;
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, string language)
