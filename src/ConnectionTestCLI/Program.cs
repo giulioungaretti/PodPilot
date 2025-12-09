@@ -2,6 +2,7 @@ using DeviceCommunication.Advertisement;
 using DeviceCommunication.Models;
 using DeviceCommunication.Services;
 using Microsoft.Extensions.Logging.Abstractions;
+using PodPilot.Core.Models;
 
 namespace ConnectionTestCLI;
 
