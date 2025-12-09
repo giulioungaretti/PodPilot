@@ -722,6 +722,53 @@ public sealed class Win32BluetoothConnector
     }
 
     /// <summary>
+    /// Sets a Bluetooth device as the default audio output.
+    /// </summary>
+    /// <param name="address">The Bluetooth MAC address.</param>
+    /// <returns>True if the device was successfully set as default; otherwise, false.</returns>
+    /// <remarks>
+    /// This uses the undocumented IPolicyConfig COM interface, which works on Windows 7-11
+    /// but is not officially supported by Microsoft and may break in future updates.
+    /// </remarks>
+    public static async Task<bool> SetDefaultAudioOutputAsync(ulong address)
+    {
+        try
+        {
+            Debug.WriteLine($"[Win32BluetoothConnector] === SET DEFAULT AUDIO OUTPUT ===");
+            Debug.WriteLine($"[Win32BluetoothConnector] Setting default audio output to device {address:X12}...");
+
+            var audioDeviceId = await FindAudioPlaybackDeviceIdAsync(address);
+            if (string.IsNullOrEmpty(audioDeviceId))
+            {
+                Debug.WriteLine($"[Win32BluetoothConnector] FAILED: No audio endpoint found for device {address:X12}");
+                Debug.WriteLine($"[Win32BluetoothConnector] Device must be connected before it can be set as default.");
+                return false;
+            }
+
+            Debug.WriteLine($"[Win32BluetoothConnector] Found audio device ID: {audioDeviceId}");
+            Debug.WriteLine($"[Win32BluetoothConnector] Calling PolicyConfigClient.SetDefaultEndpointForAllRoles...");
+
+            bool result = PolicyConfigClient.SetDefaultEndpointForAllRoles(audioDeviceId);
+
+            if (result)
+            {
+                Debug.WriteLine($"[Win32BluetoothConnector] SUCCESS: Device {address:X12} set as default audio output");
+            }
+            else
+            {
+                Debug.WriteLine($"[Win32BluetoothConnector] FAILED: Could not set device as default audio output");
+            }
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Win32BluetoothConnector] Error setting default audio output: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Verifies that an audio endpoint exists for a device after connection.
     /// Useful for debugging audio routing issues.
     /// </summary>

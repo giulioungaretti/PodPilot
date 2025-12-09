@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -362,26 +362,29 @@ public partial class AirPodsDeviceViewModel : ObservableObject
             IsBusy = true;
             _stateManager?.BeginConnectionOperation(ProductId);
             LogDebug($"Activating audio for {Model}...");
-            
+
             var result = await _connectionService.ConnectByDeviceIdAsync(PairedDeviceId);
-            
+
             switch (result)
             {
                 case ConnectionResult.Connected:
                     IsConnected = true;
-                    await Task.Delay(1500);
+                    if (_audioOutputService != null)
+                    {
+                        await _audioOutputService.SetDefaultAudioOutputAsync(PairedBluetoothAddress ?? 0);
+                    }
                     await RefreshDefaultAudioOutputStatusAsync();
                     _stateManager?.EndConnectionOperation(ProductId, success: true, IsConnected, IsDefaultAudioOutput);
                     LogDebug($"Audio activated for {Model}");
                     break;
-                    
+
                 case ConnectionResult.DeviceNotFound:
                     LogDebug($"{Model} not found (unpaired?)");
                     PairedDeviceId = null;
                     _stateManager?.EndConnectionOperation(ProductId, success: false, isConnected: false, isAudioConnected: false);
                     OnPropertyChanged(nameof(Status));
                     break;
-                    
+
                 case ConnectionResult.Failed:
                     LogDebug($"Audio activation failed for {Model}");
                     _stateManager?.EndConnectionOperation(ProductId, success: false, IsConnected, IsDefaultAudioOutput);

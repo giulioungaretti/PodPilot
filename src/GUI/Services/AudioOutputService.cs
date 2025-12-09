@@ -5,7 +5,7 @@ using PodPilot.Core.Services;
 namespace GUI.Services;
 
 /// <summary>
-/// Implementation of <see cref="IAudioOutputService"/> that uses Win32BluetoothConnector.
+/// Implementation of <see cref="IAudioOutputService"/> that uses Win32BluetoothConnector and PolicyConfigClient.
 /// </summary>
 public sealed class AudioOutputService : IAudioOutputService
 {
@@ -13,5 +13,11 @@ public sealed class AudioOutputService : IAudioOutputService
     public Task<bool> IsDefaultAudioOutputAsync(ulong bluetoothAddress)
     {
         return Win32BluetoothConnector.IsDefaultAudioOutputAsync(bluetoothAddress);
+    }
+
+    /// <inheritdoc />
+    public Task<bool> SetDefaultAudioOutputAsync(ulong bluetoothAddress)
+    {
+        return Win32BluetoothConnector.SetDefaultAudioOutputAsync(bluetoothAddress);
     }
 }
