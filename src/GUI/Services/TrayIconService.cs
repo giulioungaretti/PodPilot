@@ -9,15 +9,23 @@ namespace GUI.Services;
 internal sealed class TrayIconService : IDisposable
 {
     private readonly WindowEx _mainWindow;
+    private readonly WindowManager _windowManager;
     private bool _disposed;
 
     public event EventHandler? ShowWindowRequested;
     public event EventHandler? ExitRequested;
 
+    /// <summary>
+    /// Gets a value indicating whether the main window is currently visible (not minimized or hidden).
+    /// </summary>
+    public bool IsVisible => _windowManager.WindowState != WindowState.Minimized 
+                             && _mainWindow.Visible;
+
     public TrayIconService(WindowEx mainWindow)
     {
         ArgumentNullException.ThrowIfNull(mainWindow);
         _mainWindow = mainWindow;
+        _windowManager = WindowManager.Get(mainWindow);
     }
 
     public void Show()
