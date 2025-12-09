@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+    <Configurations>Debug;Release;anyplatdebug</Configurations>
   </PropertyGroup>
 
   <ItemGroup>
@@ -25,11 +26,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DeviceCommunication\DeviceCommunication.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Device\" />
-    <Folder Include="Services\" />
+    <ProjectReference Include="..\TestHelpers\TestHelpers.csproj" />
   </ItemGroup>
 
 </Project>
