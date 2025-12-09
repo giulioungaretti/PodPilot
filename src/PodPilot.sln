@@ -21,8 +21,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConnectionTestCLI", "Connec
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MinimalCLI", "MinimalCLI\MinimalCLI.csproj", "{3DCC460F-0C30-29A4-5F8F-B28A98008E69}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GUI.Tests", "GUI.Tests\GUI.Tests.csproj", "{C8E8A497-8F16-33E7-577E-5EF731ADE718}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestHelpers", "TestHelpers\TestHelpers.csproj", "{FE3FAA4D-4611-4B65-81C4-FAFEF9FFD4B5}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PodPilot.Core", "PodPilot.Core\PodPilot.Core.csproj", "{DBF773CD-C1B3-E043-8768-DDCECA8CC83D}"
@@ -159,24 +157,6 @@ Global
 		{3DCC460F-0C30-29A4-5F8F-B28A98008E69}.Release|x64.Build.0 = Release|Any CPU
 		{3DCC460F-0C30-29A4-5F8F-B28A98008E69}.Release|x86.ActiveCfg = Release|Any CPU
 		{3DCC460F-0C30-29A4-5F8F-B28A98008E69}.Release|x86.Build.0 = Release|Any CPU
-		{C8E8A497-8F16-33E7-577E-5EF731ADE718}.anyplatdebug|Any CPU.ActiveCfg = anyplatdebug|Any CPU
-		{C8E8A497-8F16-33E7-577E-5EF731ADE718}.anyplatdebug|Any CPU.Build.0 = anyplatdebug|Any CPU
-		{C8E8A497-8F16-33E7-577E-5EF731ADE718}.anyplatdebug|x64.ActiveCfg = anyplatdebug|Any CPU
-		{C8E8A497-8F16-33E7-577E-5EF731ADE718}.anyplatdebug|x64.Build.0 = anyplatdebug|Any CPU
-		{C8E8A497-8F16-33E7-577E-5EF731ADE718}.anyplatdebug|x86.ActiveCfg = anyplatdebug|Any CPU
-		{C8E8A497-8F16-33E7-577E-5EF731ADE718}.anyplatdebug|x86.Build.0 = anyplatdebug|Any CPU
-		{C8E8A497-8F16-33E7-577E-5EF731ADE718}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C8E8A497-8F16-33E7-577E-5EF731ADE718}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{C8E8A497-8F16-33E7-577E-5EF731ADE718}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{C8E8A497-8F16-33E7-577E-5EF731ADE718}.Debug|x64.Build.0 = Debug|Any CPU
-		{C8E8A497-8F16-33E7-577E-5EF731ADE718}.Debug|x86.ActiveCfg = Debug|x86
-		{C8E8A497-8F16-33E7-577E-5EF731ADE718}.Debug|x86.Build.0 = Debug|x86
-		{C8E8A497-8F16-33E7-577E-5EF731ADE718}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{C8E8A497-8F16-33E7-577E-5EF731ADE718}.Release|Any CPU.Build.0 = Release|Any CPU
-		{C8E8A497-8F16-33E7-577E-5EF731ADE718}.Release|x64.ActiveCfg = Release|Any CPU
-		{C8E8A497-8F16-33E7-577E-5EF731ADE718}.Release|x64.Build.0 = Release|Any CPU
-		{C8E8A497-8F16-33E7-577E-5EF731ADE718}.Release|x86.ActiveCfg = Release|Any CPU
-		{C8E8A497-8F16-33E7-577E-5EF731ADE718}.Release|x86.Build.0 = Release|Any CPU
 		{FE3FAA4D-4611-4B65-81C4-FAFEF9FFD4B5}.anyplatdebug|Any CPU.ActiveCfg = anyplatdebug|Any CPU
 		{FE3FAA4D-4611-4B65-81C4-FAFEF9FFD4B5}.anyplatdebug|Any CPU.Build.0 = anyplatdebug|Any CPU
 		{FE3FAA4D-4611-4B65-81C4-FAFEF9FFD4B5}.anyplatdebug|x64.ActiveCfg = anyplatdebug|Any CPU

@@ -119,7 +119,7 @@ public class MainPageViewModelTests : IAsyncLifetime, IDisposable
         AirPodsStateServiceTestHelpers.RaisePairedDeviceAdded(_fixture.PairedDeviceWatcher, pairedDevice);
 
         _viewModel.PairedDevices.Should().ContainSingle(d => d.ProductId == AirPodsStateServiceTestHelpers.AirPodsPro2ProductId);
-        _viewModel.DiscoveredDevices.Should().ContainSingle(d => d.ProductId == AirPodsStateServiceTestHelpers.AirPodsPro2ProductId);
+        _viewModel.DiscoveredDevices.Should().BeEmpty();
     }
 
     [Fact]
@@ -137,7 +137,7 @@ public class MainPageViewModelTests : IAsyncLifetime, IDisposable
         var updatedBleData = AirPodsStateServiceTestHelpers.CreateBleData(
             productId: AirPodsStateServiceTestHelpers.AirPodsPro2ProductId,
             leftBattery: 80);
-        
+
         await Task.Delay(300);
         AirPodsStateServiceTestHelpers.RaiseBleDataReceived(_fixture.BleDataProvider, updatedBleData);
 
@@ -172,5 +172,35 @@ public class MainPageViewModelTests : IAsyncLifetime, IDisposable
     }
 
     [Fact]
+    // add a paired device and a ble device that have the same id and check that there is only one device
+    // this test should fail
+    public async Task OnDeviceDiscovered_AddsSingleDeviceWhenPairedAndDiscovered()
+    {
+        await _viewModel.InitializeAsync();
+        var productId = AirPodsStateServiceTestHelpers.AirPodsPro2ProductId;
+        var bleData = AirPodsStateServiceTestHelpers.CreateBleData(
+            productId: productId);
+        AirPodsStateServiceTestHelpers.RaiseBleDataReceived(_fixture.BleDataProvider, bleData);
 
+        var pairedDevice = AirPodsStateServiceTestHelpers.CreatePairedDevice(
+            productId: productId);
+
+        AirPodsStateServiceTestHelpers.RaisePairedDeviceAdded(_fixture.PairedDeviceWatcher, pairedDevice);
+        AirPodsStateServiceTestHelpers.RaisePairedDeviceUpdated(_fixture.PairedDeviceWatcher, pairedDevice);
+        _viewModel.PairedDevices.Should().ContainSingle(d => d.ProductId == productId);
+        _viewModel.DiscoveredDevices.Should().BeEmpty();
+    }
+
+    [Fact]
+    // add a paired device before initalizing the viewmodel and check that it is loaded correctly
+    public async Task InitializeAsync_LoadsExistingPairedDevice()
+    {
+        var pairedDevice = AirPodsStateServiceTestHelpers.CreatePairedDevice(
+            productId: AirPodsStateServiceTestHelpers.AirPodsPro2ProductId);
+        AirPodsStateServiceTestHelpers.RaisePairedDeviceAdded(_fixture.PairedDeviceWatcher, pairedDevice);
+
+        await _viewModel.InitializeAsync();
+
+        _viewModel.PairedDevices.Should().ContainSingle(d => d.ProductId == AirPodsStateServiceTestHelpers.AirPodsPro2ProductId);
+    }
 }

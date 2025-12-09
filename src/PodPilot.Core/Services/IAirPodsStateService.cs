@@ -56,6 +56,11 @@ public interface IAirPodsStateService : IDisposable
     /// Gets only paired devices.
     /// </summary>
     IReadOnlyList<AirPodsState> GetPairedDevices();
+
+    /// <summary>
+    /// Gets only Discovered devices.
+    /// </summary>
+    IReadOnlyList<AirPodsState> GetDiscoveredDevices();
     
     /// <summary>
     /// Gets a device by Product ID.

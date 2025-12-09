@@ -1,7 +1,16 @@
 # GitHub Copilot Custom Instructions
 
+
+
 ## Tone and Style
 Confirm that what I am asking for is correct only if you are sure and have references / data / compipler output / debug output or tests to support that.
+
+# git 
+pass `--no-pager` to all git commands that support it to avoid pager issues in PowerShell.
+```powershell
+git --no-pager status
+```
+
 
 ## Commit Workflow
 

@@ -15,145 +15,131 @@
     <Page.Resources>
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
         <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
+
+        <!-- Reusable item template for device lists -->
+        <DataTemplate x:Key="DeviceItemTemplate" x:DataType="viewModels:AirPodsDeviceViewModel">
+            <controls:AirPodsCard Device="{x:Bind Mode=OneWay}" Margin="0,0,0,16"/>
+        </DataTemplate>
+
+        <!-- Reusable items panel for vertical stacking -->
+        <ItemsPanelTemplate x:Key="DevicesItemsPanel">
+            <StackPanel/>
+        </ItemsPanelTemplate>
+
+        <!-- Reusable header used in both layouts -->
+        <DataTemplate x:Key="PageHeaderTemplate">
+            <StackPanel Spacing="8">
+                <TextBlock Text="PodPilot" FontSize="32" FontWeight="Bold" />
+                <TextBlock Text="Monitor your AirPods battery and status" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="14" />
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- Reusable footer used in both states -->
+        <DataTemplate x:Key="InfoFooterTemplate">
+            <Border Background="{ThemeResource LayerFillColorDefaultBrush}"
+                    CornerRadius="8"
+                    Padding="12"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    MinWidth="280"
+                    MaxWidth="520">
+                <Grid VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Icon column -->
+                    <TextBlock Grid.Column="0" FontSize="16" Margin="0,0,12,0" VerticalAlignment="Center" FontFamily="Segoe UI Emoji">💡</TextBlock>
+
+                    <!-- Text column -->
+                    <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                        <TextBlock FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap">
+                            Tip: Your AirPods don't need to be paired to view their status.
+                        </TextBlock>
+                        <TextBlock FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap">
+                            They just need to be in range and broadcasting.
+                        </TextBlock>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </DataTemplate>
     </Page.Resources>
 
-    <Grid x:Name="PageRoot" Background="Transparent">
-        <!-- Content with devices -->
-        <ScrollViewer VerticalScrollBarVisibility="Auto"
-                      Visibility="{x:Bind ViewModel.HasDiscoveredDevices, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-            <StackPanel Padding="40,20,40,40" Spacing="32" MaxWidth="1200">
+    <Grid x:Name="PageRoot" Background="Transparent" Padding="40,20,40,40" MaxWidth="1200">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />      <!-- Header -->
+            <RowDefinition Height="Auto" />      <!-- Paired Devices / Empty State -->
+            <RowDefinition Height="*" />         <!-- Discovered Devices / Empty State -->
+            <RowDefinition Height="Auto" />      <!-- Footer -->
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <ContentControl Grid.Row="0" ContentTemplate="{StaticResource PageHeaderTemplate}" Margin="0,0,0,32" />
+
+        <!-- Paired Devices Section -->
+        <StackPanel Grid.Row="1" Spacing="16" Margin="0,0,0,32"
+                    Visibility="{x:Bind ViewModel.HasPairedDevices, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+            <Grid>
+                <TextBlock Text="🔗 Paired Devices" 
+                           FontSize="20" 
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center"
+                           FontFamily="Segoe UI Emoji" />
+            </Grid>
+
+            <!-- Paired Devices List -->
+            <ItemsControl ItemsSource="{x:Bind ViewModel.PairedDevices, Mode=OneWay}"
+                          ItemTemplate="{StaticResource DeviceItemTemplate}"
+                          ItemsPanel="{StaticResource DevicesItemsPanel}" />
+        </StackPanel>
+
+        <!-- No Paired Devices Empty State -->
+        <controls:EmptyState Grid.Row="1" 
+                             Title="No paired devices"
+                             Icon="🎧" 
+                             Message="Pair your AirPods in Windows Bluetooth settings to see them here"
+                             ButtonText="Open Bluetooth Settings"
+                             ButtonCommand="{x:Bind ViewModel.OpenBluetoothSettingsCommand}"
+                             Margin="0,0,0,32"
+                             Visibility="{x:Bind ViewModel.HasPairedDevices, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+
+        <!-- Discovered Devices Section -->
+        <StackPanel Grid.Row="2" Spacing="16" VerticalAlignment="Top"
+                    Visibility="{x:Bind ViewModel.HasDiscoveredDevices, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+            <Grid>
+                <TextBlock Text="📡 Nearby Devices" 
+                           FontSize="20" 
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center"
+                           FontFamily="Segoe UI Emoji" />
                 
-                <!-- Header -->
-                <StackPanel Spacing="8">
-                    <TextBlock Text="PodPilot" 
-                               FontSize="32" 
-                               FontWeight="Bold" />
-                    <TextBlock Text="Monitor your AirPods battery and status" 
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                               FontSize="14" />
+                <StackPanel Orientation="Horizontal" 
+                            Spacing="12" 
+                            HorizontalAlignment="Right"
+                            Visibility="{x:Bind ViewModel.IsScanning, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <controls:PulsatingDot IsActive="True" Size="20" />
                 </StackPanel>
+            </Grid>
 
-                <!-- Paired Devices Section -->
-                <StackPanel Spacing="16"
-                            Visibility="{x:Bind ViewModel.HasPairedDevices, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                    <Grid>
-                        <TextBlock Text="🔗 Paired Devices" 
-                                   FontSize="20" 
-                                   FontWeight="SemiBold"
-                                   VerticalAlignment="Center"
-                                   FontFamily="Segoe UI Emoji" />
-                    </Grid>
+            <!-- Discovered Devices List -->
+            <ItemsControl ItemsSource="{x:Bind ViewModel.DiscoveredDevices, Mode=OneWay}"
+                          ItemTemplate="{StaticResource DeviceItemTemplate}"
+                          ItemsPanel="{StaticResource DevicesItemsPanel}" />
+        </StackPanel>
 
-                    <!-- Paired Devices List -->
-                    <ItemsControl ItemsSource="{x:Bind ViewModel.PairedDevices, Mode=OneWay}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="viewModels:AirPodsDeviceViewModel">
-                                <controls:AirPodsCard Device="{x:Bind Mode=OneWay}" 
-                                                      Margin="0,0,0,16"/>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <StackPanel/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                    </ItemsControl>
-                </StackPanel>
+        <!-- No Discovered Devices Empty State -->
+        <controls:EmptyState Grid.Row="2" 
+                             Icon="📶" 
+                             Title="No nearby devices"
+                             Message="Open your AirPods case nearby to discover devices"
+                             VerticalAlignment="Top"
+                             Visibility="{x:Bind ViewModel.HasDiscoveredDevices, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
 
-                <!-- Discovered Devices Section -->
-                <StackPanel Spacing="16">
-                    <Grid>
-                        <TextBlock Text="📡 Nearby Devices" 
-                                   FontSize="20" 
-                                   FontWeight="SemiBold"
-                                   VerticalAlignment="Center"
-                                   FontFamily="Segoe UI Emoji" />
-                        
-                        <StackPanel Orientation="Horizontal" 
-                                    Spacing="12" 
-                                    HorizontalAlignment="Right"
-                                    Visibility="{x:Bind ViewModel.IsScanning, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                            <controls:PulsatingDot IsActive="True" Size="20" />
-                        </StackPanel>
-                    </Grid>
-
-                    <!-- Discovered Devices List -->
-                    <ItemsControl ItemsSource="{x:Bind ViewModel.DiscoveredDevices, Mode=OneWay}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="viewModels:AirPodsDeviceViewModel">
-                                <controls:AirPodsCard Device="{x:Bind Mode=OneWay}" 
-                                                      Margin="0,0,0,16"/>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <StackPanel/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                    </ItemsControl>
-                </StackPanel>
-
-                <!-- Info Footer -->
-                <Border Background="{ThemeResource LayerFillColorDefaultBrush}"
-                        CornerRadius="8"
-                        Padding="16"
-                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                        BorderThickness="1">
-                    <StackPanel Spacing="8">
-                        <TextBlock FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontFamily="Segoe UI Emoji">
-                            <Run Text="💡" />
-                            <Run Text="Tip: Your AirPods don't need to be paired to view their status." />
-                        </TextBlock>
-                        <TextBlock FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}">
-                            <Run Text="They just need to be in range and broadcasting." />
-                        </TextBlock>
-                    </StackPanel>
-                </Border>
-
-            </StackPanel>
-        </ScrollViewer>
-
-        <!-- Empty state centered -->
-        <Grid Visibility="{x:Bind ViewModel.HasDiscoveredDevices, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}">
-            <StackPanel VerticalAlignment="Center" 
-                        HorizontalAlignment="Center"
-                        Spacing="40"
-                        MaxWidth="600">
-                
-                <!-- Header (simplified for empty state) -->
-                <StackPanel Spacing="8" HorizontalAlignment="Center">
-                    <TextBlock Text="PodPilot" 
-                               FontSize="32" 
-                               FontWeight="Bold"
-                               HorizontalAlignment="Center" />
-                    <TextBlock Text="Monitor your AirPods battery and status" 
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                               FontSize="14"
-                               HorizontalAlignment="Center" />
-                </StackPanel>
-
-                <!-- Empty State -->
-                <controls:EmptyState Icon="🎧" 
-                                     Title="No devices found"
-                                     Message="Open your AirPods case nearby to discover devices"/>
-
-                <!-- Info Footer -->
-                <Border Background="{ThemeResource LayerFillColorDefaultBrush}"
-                        CornerRadius="8"
-                        Padding="16"
-                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                        BorderThickness="1">
-                    <StackPanel Spacing="8">
-                        <TextBlock FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontFamily="Segoe UI Emoji">
-                            <Run Text="💡" />
-                            <Run Text="Tip: Your AirPods don't need to be paired to view their status." />
-                        </TextBlock>
-                        <TextBlock FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}">
-                            <Run Text="They just need to be in range and broadcasting." />
-                        </TextBlock>
-                    </StackPanel>
-                </Border>
-            </StackPanel>
-        </Grid>
+        <!-- Footer -->
+        <ContentControl Grid.Row="3" 
+                        ContentTemplate="{StaticResource InfoFooterTemplate}" 
+                        HorizontalAlignment="Center" 
+                        VerticalAlignment="Bottom" />
     </Grid>
 </Page>

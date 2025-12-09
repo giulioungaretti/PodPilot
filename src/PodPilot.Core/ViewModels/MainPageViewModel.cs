@@ -1,8 +1,8 @@
-using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PodPilot.Core.Models;
 using PodPilot.Core.Services;
+using System.Collections.ObjectModel;
 
 namespace PodPilot.Core.ViewModels;
 
@@ -78,9 +78,9 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
             }
         }
         HasPairedDevices = PairedDevices.Count > 0;
-        
+
         // Load any existing discovered devices from state manager
-        foreach (var state in _stateManager.GetAllDevices())
+        foreach (var state in _stateManager.GetDiscoveredDevices())
         {
             var existing = DiscoveredDevices.FirstOrDefault(d => d.ProductId == state.ProductId);
             if (existing == null)
@@ -101,68 +101,111 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
         _stateManager.Stop();
     }
 
+    [RelayCommand]
+    private async Task OpenBluetoothSettingsAsync()
+    {
+        if (_systemLauncherService == null) return;
+        await _systemLauncherService.OpenBluetoothSettingsAsync();
+    }
+
     private void OnDeviceDiscovered(object? sender, AirPodsState state)
     {
-        // Already on UI thread (DeviceStateManager marshals events)
-        
-        // Add to discovered devices list
+        var existingPaired = PairedDevices.FirstOrDefault(d => d.ProductId == state.ProductId);
         var existingDiscovered = DiscoveredDevices.FirstOrDefault(d => d.ProductId == state.ProductId);
-        if (existingDiscovered == null)
+
+        switch ((state.IsPaired, existingPaired, existingDiscovered))
         {
-            var deviceViewModel = CreateDeviceViewModel(state);
-            DiscoveredDevices.Add(deviceViewModel);
-            HasDiscoveredDevices = DiscoveredDevices.Count > 0;
-        }
-        
-        // If this is a paired device, also add to paired devices list
-        if (state.IsPaired)
-        {
-            var existingPaired = PairedDevices.FirstOrDefault(d => d.ProductId == state.ProductId);
-            if (existingPaired == null)
+            // Paired device not yet in the paired list -> add
+            case (true, null, _):
             {
                 var pairedDeviceViewModel = CreateDeviceViewModel(state);
                 PairedDevices.Add(pairedDeviceViewModel);
                 HasPairedDevices = PairedDevices.Count > 0;
+                // If we already had this device in the discovered list (from BLE), remove it
+                if (existingDiscovered != null)
+                {
+                    DiscoveredDevices.Remove(existingDiscovered);
+                    HasDiscoveredDevices = DiscoveredDevices.Count > 0;
+                }
+                break;
             }
+
+            // Paired device already present -> update
+            case (true, AirPodsDeviceViewModel paired, _):
+            {
+                paired.UpdateFromState(state);
+                // If we also have a discovered entry for the same product id, remove it to avoid duplicates
+                if (existingDiscovered != null)
+                {
+                    DiscoveredDevices.Remove(existingDiscovered);
+                    HasDiscoveredDevices = DiscoveredDevices.Count > 0;
+                }
+                break;
+            }
+
+            // Unpaired device not yet discovered -> add
+            case (false, _, null):
+            {
+                var deviceViewModel = CreateDeviceViewModel(state);
+                DiscoveredDevices.Add(deviceViewModel);
+                HasDiscoveredDevices = DiscoveredDevices.Count > 0;
+                break;
+            }
+
+            // Unpaired device already discovered -> update
+            case (false, _, AirPodsDeviceViewModel discovered):
+            {
+                discovered.UpdateFromState(state);
+                break;
+            }
+
+            default:
         }
     }
 
     private void OnDeviceStateChanged(object? sender, DeviceStateChangedEventArgs args)
     {
-        // Already on UI thread (DeviceStateManager marshals events)
         var state = args.State;
-        
-        // Update discovered devices
+
         var existingDiscovered = DiscoveredDevices.FirstOrDefault(d => d.ProductId == state.ProductId);
-        if (existingDiscovered != null)
-        {
-            existingDiscovered.UpdateFromState(state);
-        }
-        
-        // Handle paired devices
         var existingPaired = PairedDevices.FirstOrDefault(d => d.ProductId == state.ProductId);
-        
-        if (state.IsPaired)
+
+        // Use tuple pattern matching to make the branching explicit and easier to follow
+        switch ((state.IsPaired, existingPaired, existingDiscovered))
         {
-            // Device is paired - add or update
-            if (existingPaired == null)
+            // Paired device that is not yet in the paired list -> add
+            case (true, null, _):
             {
                 var pairedDeviceViewModel = CreateDeviceViewModel(state);
                 PairedDevices.Add(pairedDeviceViewModel);
                 HasPairedDevices = PairedDevices.Count > 0;
+                break;
             }
-            else
+
+            // Paired device already present -> update
+            case (true, AirPodsDeviceViewModel paired, _):
             {
-                existingPaired.UpdateFromState(state);
+                paired.UpdateFromState(state);
+                break;
             }
-        }
-        else
-        {
-            // Device is no longer paired - remove if present
-            if (existingPaired != null)
+
+            // Unpaired device that was discovered -> update discovery entry
+            case (false, _, AirPodsDeviceViewModel discovered) when discovered != null:
             {
-                PairedDevices.Remove(existingPaired);
-                HasPairedDevices = PairedDevices.Count > 0;
+                discovered.UpdateFromState(state);
+                break;
+            }
+
+            // Fallback: device is no longer paired -> remove from paired list if present
+            default:
+            {
+                if (existingPaired != null)
+                {
+                    PairedDevices.Remove(existingPaired);
+                    HasPairedDevices = PairedDevices.Count > 0;
+                }
+
+                break;
             }
         }
     }
@@ -176,9 +219,9 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
         {
             return;
         }
-        
+
         _isProcessingCleanup = true;
-        
+
         try
         {
             var now = DateTime.Now;
@@ -187,7 +230,7 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
             foreach (var device in DiscoveredDevices)
             {
                 var timeSinceLastSeen = (now - device.LastSeen).TotalSeconds;
-                
+
                 if (timeSinceLastSeen >= 10)
                 {
                     devicesToRemove.Add(device);
@@ -202,7 +245,7 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
             {
                 DiscoveredDevices.Remove(device);
             }
-            
+
             HasDiscoveredDevices = DiscoveredDevices.Count > 0;
         }
         finally
@@ -214,10 +257,10 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
     private AirPodsDeviceViewModel CreateDeviceViewModel(AirPodsState state)
     {
         return new AirPodsDeviceViewModel(
-            state, 
-            _connectionService, 
-            _stateManager, 
-            _audioOutputService, 
+            state,
+            _connectionService,
+            _stateManager,
+            _audioOutputService,
             _systemLauncherService);
     }
 

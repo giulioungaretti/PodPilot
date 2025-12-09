@@ -49,6 +49,10 @@ public interface IDeviceStateManager : IDisposable
     IReadOnlyList<AirPodsState> GetPairedDevices();
     
     /// <summary>
+    /// Gets only discovered devices.
+    /// </summary>
+    IReadOnlyList<AirPodsState> GetDiscoveredDevices();
+    /// <summary>
     /// Starts monitoring (starts underlying services).
     /// </summary>
     Task StartAsync();

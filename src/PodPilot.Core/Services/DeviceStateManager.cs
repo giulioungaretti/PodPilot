@@ -65,6 +65,10 @@ public sealed class DeviceStateManager : IDeviceStateManager
     {
         return _stateService.GetPairedDevices();
     }
+    public IReadOnlyList<AirPodsState> GetDiscoveredDevices()
+    {
+        return _stateService.GetDiscoveredDevices();
+    }
 
     public void BeginConnectionOperation(ushort productId)
     {

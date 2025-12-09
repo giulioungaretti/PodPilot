@@ -5,41 +5,60 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:converters="using:GUI.Converters"
     mc:Ignorable="d">
 
-    <Grid HorizontalAlignment="Center" 
+    <UserControl.Resources>
+        <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
+    </UserControl.Resources>
+    <Border CornerRadius="12" 
+            Padding="24" 
+            BorderThickness="1"
+            Background="{ThemeResource LayerFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            >
+        <Grid HorizontalAlignment="Center" 
           VerticalAlignment="Center" 
-          Padding="40">
-        
-        <StackPanel Spacing="16" 
+          Padding="20">
+
+            <StackPanel Spacing="10" 
                     HorizontalAlignment="Center">
-            
-            <!-- Icon -->
-            <TextBlock x:Name="IconBlock"
+
+                <!-- Icon -->
+                <TextBlock x:Name="IconBlock"
                        Text="{x:Bind Icon, Mode=OneWay}"
                        FontSize="72"
                        HorizontalAlignment="Center"
                        Opacity="0.6"
                        FontFamily="Segoe UI Emoji"/>
-            
-            <!-- Title -->
-            <TextBlock x:Name="TitleBlock"
+                <!-- Title -->
+                <TextBlock x:Name="TitleBlock"
                        Text="{x:Bind Title, Mode=OneWay}"
                        FontSize="20"
                        FontWeight="SemiBold"
                        HorizontalAlignment="Center"
-                       TextAlignment="Center"/>
-            
-            <!-- Message -->
-            <TextBlock x:Name="MessageBlock"
+                       TextAlignment="Center"
+                       Foreground="Black"/>
+
+                <!-- Message -->
+                <TextBlock x:Name="MessageBlock"
                        Text="{x:Bind Message, Mode=OneWay}"
                        FontSize="14"
                        HorizontalAlignment="Center"
                        TextAlignment="Center"
                        TextWrapping="Wrap"
                        MaxWidth="300"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-            
-        </StackPanel>
-    </Grid>
+                       Foreground="DimGray"/>
+
+                <!-- Optional Button -->
+                <Button x:Name="ActionButton"
+                    Content="{x:Bind ButtonText, Mode=OneWay}"
+                    Command="{x:Bind ButtonCommand, Mode=OneWay}"
+                    HorizontalAlignment="Center"
+                    Margin="0,8,0,0"
+                    Visibility="{x:Bind ButtonCommand, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}"/>
+
+            </StackPanel>
+        </Grid>
+    </Border>
 </UserControl>

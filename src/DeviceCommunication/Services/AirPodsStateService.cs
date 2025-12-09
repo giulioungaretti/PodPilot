@@ -86,6 +86,10 @@ public sealed class AirPodsStateService : IAirPodsStateService
     {
         return _stateByProductId.Values.ToList();
     }
+    public IReadOnlyList<AirPodsState> GetDiscoveredDevices()
+    {
+        return _stateByProductId.Values.Where(s => !s.IsPaired).ToList();
+    }
 
     public IReadOnlyList<AirPodsState> GetPairedDevices()
     {

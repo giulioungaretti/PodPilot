@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using System.Windows.Input;
 
 namespace GUI.Controls;
 
@@ -29,6 +30,21 @@ public sealed partial class EmptyState : UserControl
             typeof(EmptyState),
             new PropertyMetadata("??"));
 
+    public static readonly DependencyProperty ButtonTextProperty =
+        DependencyProperty.Register(
+            nameof(ButtonText),
+            typeof(string),
+            typeof(EmptyState),
+            new PropertyMetadata(string.Empty));
+
+    public static readonly DependencyProperty ButtonCommandProperty =
+        DependencyProperty.Register(
+            nameof(ButtonCommand),
+            typeof(ICommand),
+            typeof(EmptyState),
+            new PropertyMetadata(null));
+
+    
     public string Title
     {
         get => (string)GetValue(TitleProperty);
@@ -45,6 +61,18 @@ public sealed partial class EmptyState : UserControl
     {
         get => (string)GetValue(IconProperty);
         set => SetValue(IconProperty, value);
+    }
+
+    public string ButtonText
+    {
+        get => (string)GetValue(ButtonTextProperty);
+        set => SetValue(ButtonTextProperty, value);
+    }
+
+    public ICommand? ButtonCommand
+    {
+        get => (ICommand?)GetValue(ButtonCommandProperty);
+        set => SetValue(ButtonCommandProperty, value);
     }
 
     public EmptyState()
