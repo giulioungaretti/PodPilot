@@ -1,5 +1,7 @@
 using DeviceCommunication.Models;
 using Microsoft.Extensions.Logging;
+using PodPilot.Core.Models;
+using PodPilot.Core.Services;
 
 namespace DeviceCommunication.Services;
 

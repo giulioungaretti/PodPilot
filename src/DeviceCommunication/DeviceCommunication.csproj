@@ -8,12 +8,17 @@
     <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
     <OutputType>Library</OutputType>
     <RootNamespace>DeviceCommunication</RootNamespace>
+    <Configurations>Debug;Release;anyplatdebug</Configurations>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="System.Reactive" Version="6.0.1" />
     <PackageReference Include="InTheHand.Net.Bluetooth" Version="4.2.2" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PodPilot.Core\PodPilot.Core.csproj" />
   </ItemGroup>
 
 </Project>

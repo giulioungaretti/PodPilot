@@ -1,24 +1,10 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
+using PodPilot.Core.Services;
 using Windows.Devices.Bluetooth;
 using Windows.Devices.Enumeration;
 
 namespace DeviceCommunication.Services;
-
-/// <summary>
-/// Result of a connection attempt.
-/// </summary>
-public enum ConnectionResult
-{
-    /// <summary>Connection established successfully.</summary>
-    Connected,
-    /// <summary>Device is not paired with Windows.</summary>
-    NeedsPairing,
-    /// <summary>Device was not found.</summary>
-    DeviceNotFound,
-    /// <summary>Connection failed due to an error.</summary>
-    Failed
-}
 
 /// <summary>
 /// Service for managing Bluetooth device connections using Windows device IDs.
