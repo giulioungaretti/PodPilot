@@ -55,7 +55,8 @@ public static class AirPodsStateServiceTestHelpers
         bool isRightInEar = false,
         bool isLidOpen = true,
         bool isBothPodsInCase = true,
-        int signalStrength = -50)
+        int signalStrength = -50,
+        DateTime? lastupdate = null)
     {
         return new BleEnrichmentData
         {
@@ -73,7 +74,7 @@ public static class AirPodsStateServiceTestHelpers
             IsLidOpen = isLidOpen,
             IsBothPodsInCase = isBothPodsInCase,
             SignalStrength = (short)signalStrength,
-            LastUpdate = DateTime.Now
+            LastUpdate = lastupdate ?? DateTime.Now
         };
     }
 

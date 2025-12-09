@@ -5,6 +5,7 @@ using PodPilot.Core.Services;
 using PodPilot.Core.ViewModels;
 using TestHelpers;
 using Xunit;
+using System;
 
 namespace PodPilot.Core.Tests.ViewModels;
 
@@ -203,4 +204,30 @@ public class MainPageViewModelTests : IAsyncLifetime, IDisposable
 
         _viewModel.PairedDevices.Should().ContainSingle(d => d.ProductId == AirPodsStateServiceTestHelpers.AirPodsPro2ProductId);
     }
+    [Fact]
+    // a device that is broadcasting and then it's removed and then it's broadscasting again should be in the Discovered devices
+    public async Task OnDeviceDiscovered_DeviceReappearsAfterRemoval_IsInDiscoveredDevices()
+    {
+        await _viewModel.InitializeAsync();
+
+        // Device starts broadcasting, the the last seen time to be in the past 10 seconds
+        var bleData = AirPodsStateServiceTestHelpers.CreateBleData(
+            productId: AirPodsStateServiceTestHelpers.AirPodsPro2ProductId, lastupdate: DateTime.Now.AddSeconds(-10));
+        AirPodsStateServiceTestHelpers.RaiseBleDataReceived(_fixture.BleDataProvider, bleData);
+
+        _viewModel.DiscoveredDevices.Should().ContainSingle(d => d.ProductId == AirPodsStateServiceTestHelpers.AirPodsPro2ProductId);
+
+        // Simulate device removal via cleanup
+        _viewModel.OnCleanupTimerTick();
+
+        _viewModel.DiscoveredDevices.Should().BeEmpty();
+        var bleData2 = AirPodsStateServiceTestHelpers.CreateBleData(
+            productId: AirPodsStateServiceTestHelpers.AirPodsPro2ProductId);
+        await Task.Delay(200);
+        // Device starts broadcasting again
+        AirPodsStateServiceTestHelpers.RaiseBleDataReceived(_fixture.BleDataProvider, bleData2);
+
+        _viewModel.DiscoveredDevices.Should().ContainSingle(d => d.ProductId == AirPodsStateServiceTestHelpers.AirPodsPro2ProductId);
+    }
 }
+

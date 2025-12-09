@@ -195,6 +195,14 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
                 discovered.UpdateFromState(state);
                 break;
             }
+            // Unpaired device that was not yet discovered -> add
+            case (false, _, null):
+            {
+                var vm = CreateDeviceViewModel(state); 
+                DiscoveredDevices.Add(vm);
+                HasDiscoveredDevices = DiscoveredDevices.Count > 0;
+                break;
+            }
 
             // Fallback: device is no longer paired -> remove from paired list if present
             default:
