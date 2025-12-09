@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Concurrent;
-using DeviceCommunication.Models;
-using DeviceCommunication.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI.Dispatching;
+using PodPilot.Core.Models;
+using PodPilot.Core.Services;
 
 namespace GUI.Services;
 

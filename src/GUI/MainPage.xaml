@@ -6,7 +6,7 @@
     xmlns:local="using:GUI"
     xmlns:controls="using:GUI.Controls"
     xmlns:models="using:DeviceCommunication.Models"
-    xmlns:viewModels="using:GUI.ViewModels"
+    xmlns:viewModels="using:PodPilot.Core.ViewModels"
     xmlns:converters="using:GUI.Converters"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"

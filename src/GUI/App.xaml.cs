@@ -1,14 +1,15 @@
 ﻿using System;
-using DeviceCommunication.Models;
-using DeviceCommunication.Services;
 using DeviceCommunication.Advertisement;
+using DeviceCommunication.Services;
 using GUI.Services;
-using GUI.ViewModels;
 using GUI.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
+using PodPilot.Core.Models;
+using PodPilot.Core.Services;
+using PodPilot.Core.ViewModels;
 
 namespace GUI;
 
@@ -55,6 +56,7 @@ public partial class App : Application
 
         // Infrastructure
         services.AddSingleton(dispatcherQueue);
+        services.AddSingleton<IDispatcherService, DispatcherService>();
 
         // Low-level services (no dependencies on other services)
         services.AddSingleton<IAdvertisementWatcher, AdvertisementWatcher>();
@@ -72,6 +74,10 @@ public partial class App : Application
 
         // Mid-level services
         services.AddSingleton<IBluetoothConnectionService, BluetoothConnectionService>();
+        
+        // Platform abstraction services
+        services.AddSingleton<IAudioOutputService, AudioOutputService>();
+        services.AddSingleton<ISystemLauncherService, SystemLauncherService>();
         
         // UI-layer state manager (wraps IAirPodsStateService with UI thread marshalling)
         services.AddSingleton<IDeviceStateManager, DeviceStateManager>();

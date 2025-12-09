@@ -1,9 +1,9 @@
 using System;
-using DeviceCommunication.Models;
-using DeviceCommunication.Services;
-using GUI.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Windowing;
+using PodPilot.Core.Models;
+using PodPilot.Core.Services;
+using PodPilot.Core.ViewModels;
 using WinUIEx;
 
 namespace GUI.Windows;

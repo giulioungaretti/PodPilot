@@ -1,4 +1,4 @@
-using GUI.ViewModels;
+using PodPilot.Core.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 

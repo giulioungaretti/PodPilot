@@ -1,6 +1,5 @@
 using System;
-using DeviceCommunication.Models;
-using DeviceCommunication.Services;
+using PodPilot.Core.Models;
 
 namespace GUI.Services;
 

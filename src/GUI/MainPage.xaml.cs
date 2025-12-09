@@ -1,8 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml.Controls;
-using GUI.ViewModels;
 using Microsoft.UI.Dispatching;
 using System;
+using PodPilot.Core.ViewModels;
 
 namespace GUI;
 
@@ -41,7 +41,7 @@ public sealed partial class MainPage : Page
 
     private void OnCleanupTimerTick(DispatcherQueueTimer sender, object args)
     {
-        ViewModel.OnCleanupTimerTick(sender, args);
+        ViewModel.OnCleanupTimerTick();
     }
 }
 
