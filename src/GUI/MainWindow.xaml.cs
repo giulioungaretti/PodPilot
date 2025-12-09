@@ -24,7 +24,7 @@ public sealed partial class MainWindow : WindowEx
         ExtendsContentIntoTitleBar = true;
         
         // Set window size
-        this.SetWindowSize(900, 700);
+        this.SetWindowSize(500, 900);
         this.CenterOnScreen();
 
 

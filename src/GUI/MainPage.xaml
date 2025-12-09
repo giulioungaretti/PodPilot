@@ -12,6 +12,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
+
     <Page.Resources>
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
         <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
@@ -21,9 +22,11 @@
             <controls:AirPodsCard Device="{x:Bind Mode=OneWay}" Margin="0,0,0,16"/>
         </DataTemplate>
 
-        <!-- Reusable items panel for vertical stacking -->
+        <!-- Reusable items panel for vertical stacking
+             NOTE: The panel must be a Panel-derived element that the ItemsControl will use to host items.
+             Scrolling is provided by wrapping the ItemsControl in a ScrollViewer where used. -->
         <ItemsPanelTemplate x:Key="DevicesItemsPanel">
-            <StackPanel/>
+            <ItemsStackPanel Orientation="Vertical" />
         </ItemsPanelTemplate>
 
         <!-- Reusable header used in both layouts -->
@@ -88,10 +91,10 @@
                            FontFamily="Segoe UI Emoji" />
             </Grid>
 
-            <!-- Paired Devices List -->
-            <ItemsControl ItemsSource="{x:Bind ViewModel.PairedDevices, Mode=OneWay}"
-                          ItemTemplate="{StaticResource DeviceItemTemplate}"
-                          ItemsPanel="{StaticResource DevicesItemsPanel}" />
+            <!-- Paired Devices List wrapped in ScrollViewer to enable scrolling -->
+                <ItemsControl ItemsSource="{x:Bind ViewModel.PairedDevices, Mode=OneWay}"
+                              ItemTemplate="{StaticResource DeviceItemTemplate}"
+                              ItemsPanel="{StaticResource DevicesItemsPanel}" />
         </StackPanel>
 
         <!-- No Paired Devices Empty State -->
@@ -117,15 +120,20 @@
                 <StackPanel Orientation="Horizontal" 
                             Spacing="12" 
                             HorizontalAlignment="Right"
+                            Padding="15"
                             Visibility="{x:Bind ViewModel.IsScanning, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                     <controls:PulsatingDot IsActive="True" Size="20" />
                 </StackPanel>
             </Grid>
 
-            <!-- Discovered Devices List -->
-            <ItemsControl ItemsSource="{x:Bind ViewModel.DiscoveredDevices, Mode=OneWay}"
-                          ItemTemplate="{StaticResource DeviceItemTemplate}"
-                          ItemsPanel="{StaticResource DevicesItemsPanel}" />
+            <!-- Discovered Devices List wrapped in ScrollViewer to enable scrolling -->
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                          VerticalScrollBarVisibility="Auto"
+                          MaxHeight="400"> <!-- optional MaxHeight to constrain scrolling area -->
+                <ItemsControl ItemsSource="{x:Bind ViewModel.DiscoveredDevices, Mode=OneWay}"
+                              ItemTemplate="{StaticResource DeviceItemTemplate}"
+                              ItemsPanel="{StaticResource DevicesItemsPanel}" />
+            </ScrollViewer>
         </StackPanel>
 
         <!-- No Discovered Devices Empty State -->
