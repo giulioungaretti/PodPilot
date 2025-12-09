@@ -298,7 +298,8 @@ public partial class AirPodsDeviceViewModel : ObservableObject
             {
                 case ConnectionResult.Connected:
                     IsConnected = true;
-                    await Task.Delay(1500);
+                    // TODO: do we need this? 
+                    // await Task.Delay(1500);
                     await RefreshDefaultAudioOutputStatusAsync();
                     _stateManager?.EndConnectionOperation(ProductId, success: true, IsConnected, IsDefaultAudioOutput);
                     LogDebug($"Connected to {Model}");
