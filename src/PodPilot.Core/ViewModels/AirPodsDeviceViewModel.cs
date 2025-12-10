@@ -46,9 +46,13 @@ public partial class AirPodsDeviceViewModel : ObservableObject
     private string _deviceName = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StatusText))]
+    [NotifyPropertyChangedFor(nameof(StatusIcon))]
     private int? _leftBattery;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StatusText))]
+    [NotifyPropertyChangedFor(nameof(StatusIcon))]
     private int? _rightBattery;
 
     [ObservableProperty]
@@ -64,12 +68,18 @@ public partial class AirPodsDeviceViewModel : ObservableObject
     private bool _isCaseCharging;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StatusText))]
+    [NotifyPropertyChangedFor(nameof(StatusIcon))]
     private bool _isLeftInEar;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StatusText))]
+    [NotifyPropertyChangedFor(nameof(StatusIcon))]
     private bool _isRightInEar;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StatusText))]
+    [NotifyPropertyChangedFor(nameof(StatusIcon))]
     private bool _isLidOpen;
 
     [ObservableProperty]
@@ -128,9 +138,69 @@ public partial class AirPodsDeviceViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Gets whether to show the pairing warning icon (??).
+    /// Gets whether to show the pairing warning icon (⚠️).
     /// </summary>
     public bool ShowPairingWarning => Status == DeviceStatus.Unpaired;
+
+    /// <summary>
+    /// Gets a human-readable status text based on pod and case state.
+    /// </summary>
+    public string StatusText
+    {
+        get
+        {
+            bool leftInEar = IsLeftInEar;
+            bool rightInEar = IsRightInEar;
+            bool bothInCase = !leftInEar && !rightInEar && LeftBattery.HasValue && RightBattery.HasValue;
+
+            if (bothInCase)
+            {
+                return IsLidOpen ? "In Case (Lid Open)" : "In Case";
+            }
+            
+            if (leftInEar && rightInEar)
+            {
+                return "In Use";
+            }
+            
+            if (leftInEar)
+            {
+                return "Left in Use";
+            }
+            
+            if (rightInEar)
+            {
+                return "Right in Use";
+            }
+            
+            return "Out of Case";
+        }
+    }
+
+    /// <summary>
+    /// Gets an icon representing the current pod status.
+    /// </summary>
+    public string StatusIcon
+    {
+        get
+        {
+            bool leftInEar = IsLeftInEar;
+            bool rightInEar = IsRightInEar;
+            bool bothInCase = !leftInEar && !rightInEar && LeftBattery.HasValue && RightBattery.HasValue;
+
+            if (bothInCase)
+            {
+                return IsLidOpen ? "📂" : "📦";
+            }
+            
+            if (leftInEar || rightInEar)
+            {
+                return "👂";
+            }
+            
+            return "🎧";
+        }
+    }
 
     /// <summary>
     /// Gets the icon for the primary action button.
@@ -138,7 +208,7 @@ public partial class AirPodsDeviceViewModel : ObservableObject
     public string PrimaryButtonIcon => Status switch
     {
         DeviceStatus.Unpaired => "🔗",
-        DeviceStatus.Disconnected => "🛜 ",
+        DeviceStatus.Disconnected => "🔌",
         DeviceStatus.Connected => "🔉",
         DeviceStatus.AudioActive => "⛔",
         _ => "?"

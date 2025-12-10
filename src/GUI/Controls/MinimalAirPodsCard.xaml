@@ -13,6 +13,7 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
             
             <!-- Header Row -->
@@ -51,86 +52,110 @@
                 </Button>
             </Grid>
             
-            <!-- Battery Row - Left and Right AirPods -->
-            <Grid Grid.Row="1">
+            <!-- Battery Row - Three Columns: Left, Right, Case -->
+            <Grid Grid.Row="1" Margin="0,0,0,8">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="10"/>
+                    <ColumnDefinition Width="8"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="8"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 
                 <!-- Left AirPod Battery Display -->
                 <Border Grid.Column="0" 
-                        CornerRadius="8" 
-                        Padding="10,8" 
+                        CornerRadius="6" 
+                        Padding="8,6" 
                         Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}" 
                         Visibility="{x:Bind Device.LeftBattery, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        
-                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
-                            <TextBlock Text="L" FontWeight="SemiBold" FontSize="11" 
-                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                       HorizontalAlignment="Center"/>
-                            <StackPanel Orientation="Horizontal" Spacing="2" HorizontalAlignment="Center">
-                                <FontIcon Glyph="&#xE7F3;" FontSize="9" FontFamily="Segoe MDL2 Assets"
-                                          Foreground="{ThemeResource SystemFillColorSuccessBrush}"
-                                          Visibility="{x:Bind Device.IsLeftInEar, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                                <FontIcon Glyph="&#xEA81;" FontSize="9" FontFamily="Segoe MDL2 Assets"
-                                          Foreground="{ThemeResource SystemFillColorCautionBrush}"
-                                          Visibility="{x:Bind Device.IsLeftCharging, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                            </StackPanel>
+                    <StackPanel Spacing="3">
+                        <TextBlock Text="L" FontWeight="SemiBold" FontSize="10" 
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   HorizontalAlignment="Center"/>
+                        <StackPanel Orientation="Horizontal" Spacing="2" HorizontalAlignment="Center">
+                            <FontIcon Glyph="&#xE7F3;" FontSize="8" FontFamily="Segoe MDL2 Assets"
+                                      Foreground="{ThemeResource SystemFillColorSuccessBrush}"
+                                      Visibility="{x:Bind Device.IsLeftInEar, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                      ToolTipService.ToolTip="In Ear"/>
+                            <FontIcon Glyph="&#xEA81;" FontSize="8" FontFamily="Segoe MDL2 Assets"
+                                      Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                                      Visibility="{x:Bind Device.IsLeftCharging, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                      ToolTipService.ToolTip="Charging"/>
                         </StackPanel>
-                        
-                        <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center" Spacing="2">
-                            <ProgressBar Value="{x:Bind Device.LeftBattery, Mode=OneWay, Converter={StaticResource BatteryToDoubleConverter}}"
-                                         Maximum="100" Height="6" CornerRadius="3"/>
-                            <TextBlock Text="{x:Bind Device.LeftBattery, Mode=OneWay, Converter={StaticResource BatteryPercentageConverter}}" 
-                                       FontWeight="SemiBold" FontSize="11" HorizontalAlignment="Center"
-                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                        </StackPanel>
-                    </Grid>
+                        <ProgressBar Value="{x:Bind Device.LeftBattery, Mode=OneWay, Converter={StaticResource BatteryToDoubleConverter}}"
+                                     Maximum="100" Height="4" CornerRadius="2"/>
+                        <TextBlock Text="{x:Bind Device.LeftBattery, Mode=OneWay, Converter={StaticResource BatteryPercentageConverter}}" 
+                                   FontWeight="SemiBold" FontSize="10" HorizontalAlignment="Center"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
                 </Border>
                 
                 <!-- Right AirPod Battery Display -->
                 <Border Grid.Column="2" 
-                        CornerRadius="8" 
-                        Padding="10,8" 
+                        CornerRadius="6" 
+                        Padding="8,6" 
                         Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}" 
                         Visibility="{x:Bind Device.RightBattery, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        
-                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
-                            <TextBlock Text="R" FontWeight="SemiBold" FontSize="11" 
-                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                       HorizontalAlignment="Center"/>
-                            <StackPanel Orientation="Horizontal" Spacing="2" HorizontalAlignment="Center">
-                                <FontIcon Glyph="&#xE7F3;" FontSize="9" FontFamily="Segoe MDL2 Assets"
-                                          Foreground="{ThemeResource SystemFillColorSuccessBrush}"
-                                          Visibility="{x:Bind Device.IsRightInEar, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                                <FontIcon Glyph="&#xEA81;" FontSize="9" FontFamily="Segoe MDL2 Assets"
-                                          Foreground="{ThemeResource SystemFillColorCautionBrush}"
-                                          Visibility="{x:Bind Device.IsRightCharging, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                            </StackPanel>
+                    <StackPanel Spacing="3">
+                        <TextBlock Text="R" FontWeight="SemiBold" FontSize="10" 
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   HorizontalAlignment="Center"/>
+                        <StackPanel Orientation="Horizontal" Spacing="2" HorizontalAlignment="Center">
+                            <FontIcon Glyph="&#xE7F3;" FontSize="8" FontFamily="Segoe MDL2 Assets"
+                                      Foreground="{ThemeResource SystemFillColorSuccessBrush}"
+                                      Visibility="{x:Bind Device.IsRightInEar, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                      ToolTipService.ToolTip="In Ear"/>
+                            <FontIcon Glyph="&#xEA81;" FontSize="8" FontFamily="Segoe MDL2 Assets"
+                                      Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                                      Visibility="{x:Bind Device.IsRightCharging, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                      ToolTipService.ToolTip="Charging"/>
                         </StackPanel>
-                        
-                        <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center" Spacing="2">
-                            <ProgressBar Value="{x:Bind Device.RightBattery, Mode=OneWay, Converter={StaticResource BatteryToDoubleConverter}}"
-                                         Maximum="100" Height="6" CornerRadius="3"/>
-                            <TextBlock Text="{x:Bind Device.RightBattery, Mode=OneWay, Converter={StaticResource BatteryPercentageConverter}}" 
-                                       FontWeight="SemiBold" FontSize="11" HorizontalAlignment="Center"
-                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <ProgressBar Value="{x:Bind Device.RightBattery, Mode=OneWay, Converter={StaticResource BatteryToDoubleConverter}}"
+                                     Maximum="100" Height="4" CornerRadius="2"/>
+                        <TextBlock Text="{x:Bind Device.RightBattery, Mode=OneWay, Converter={StaticResource BatteryPercentageConverter}}" 
+                                   FontWeight="SemiBold" FontSize="10" HorizontalAlignment="Center"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                </Border>
+                
+                <!-- Case Battery Display -->
+                <Border Grid.Column="4" 
+                        CornerRadius="6" 
+                        Padding="8,6" 
+                        Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}" 
+                        Visibility="{x:Bind Device.CaseBattery, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}">
+                    <StackPanel Spacing="3">
+                        <TextBlock Text="Case" FontWeight="SemiBold" FontSize="10" 
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   HorizontalAlignment="Center"/>
+                        <StackPanel Orientation="Horizontal" Spacing="2" HorizontalAlignment="Center">
+                            <FontIcon Glyph="&#xEA81;" FontSize="8" FontFamily="Segoe MDL2 Assets"
+                                      Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                                      Visibility="{x:Bind Device.IsCaseCharging, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                      ToolTipService.ToolTip="Charging"/>
                         </StackPanel>
-                    </Grid>
+                        <ProgressBar Value="{x:Bind Device.CaseBattery, Mode=OneWay, Converter={StaticResource BatteryToDoubleConverter}}"
+                                     Maximum="100" Height="4" CornerRadius="2"/>
+                        <TextBlock Text="{x:Bind Device.CaseBattery, Mode=OneWay, Converter={StaticResource BatteryPercentageConverter}}" 
+                                   FontWeight="SemiBold" FontSize="10" HorizontalAlignment="Center"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
                 </Border>
             </Grid>
+            
+            <!-- Status Row -->
+            <Border Grid.Row="2" 
+                    CornerRadius="6" 
+                    Padding="8,4" 
+                    Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
+                <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                    <TextBlock Text="{x:Bind Device.StatusIcon, Mode=OneWay}" 
+                               FontSize="12" FontFamily="Segoe UI Emoji"/>
+                    <TextBlock Text="{x:Bind Device.StatusText, Mode=OneWay}" 
+                               FontSize="11" 
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </StackPanel>
+            </Border>
         </Grid>
     </Border>
 </UserControl>
