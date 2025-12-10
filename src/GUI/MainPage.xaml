@@ -14,9 +14,6 @@
 
 
     <Page.Resources>
-        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
-        <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
-
         <!-- Reusable item template for device lists -->
         <DataTemplate x:Key="DeviceItemTemplate" x:DataType="viewModels:AirPodsDeviceViewModel">
             <controls:AirPodsCard Device="{x:Bind Mode=OneWay}" Margin="0,0,0,16"/>

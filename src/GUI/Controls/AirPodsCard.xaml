@@ -9,17 +9,9 @@
     mc:Ignorable="d">
 
     <UserControl.Resources>
-        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
         <converters:DeviceStatusToVisibilityConverter x:Key="DeviceStatusToVisibilityConverter"/>
-        <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
         <converters:TimeAgoConverter x:Key="TimeAgoConverter"/>
-        <converters:BatteryPercentageConverter x:Key="BatteryPercentageConverter"/>
         <converters:SignalStrengthConverter x:Key="SignalStrengthConverter"/>
-        <converters:NullableBatteryToDoubleConverter x:Key="BatteryToDoubleConverter"/>
-        <converters:ChargingIconConverter x:Key="ChargingIconConverter"/>
-        <converters:InEarIconConverter x:Key="InEarIconConverter"/>
-        <converters:LidStatusConverter x:Key="LidStatusConverter"/>
-        <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
         <converters:BoolToOpacityConverter x:Key="BoolToOpacityConverter"/>
         <converters:PairingTooltipConverter x:Key="PairingTooltipConverter"/>
     </UserControl.Resources>

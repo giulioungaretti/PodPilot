@@ -2,18 +2,7 @@
 <UserControl 
     x:Class="GUI.Controls.MinimalAirPodsCard" 
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" 
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" 
-    xmlns:converters="using:GUI.Converters">
-    
-    <UserControl.Resources>
-        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
-        <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
-        <converters:BatteryPercentageConverter x:Key="BatteryPercentageConverter"/>
-        <converters:NullableBatteryToDoubleConverter x:Key="BatteryToDoubleConverter"/>
-        <converters:ChargingIconConverter x:Key="ChargingIconConverter"/>
-        <converters:InEarIconConverter x:Key="InEarIconConverter"/>
-        <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
-    </UserControl.Resources>
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     
     <Border CornerRadius="12" 
             Padding="16" 
@@ -36,21 +25,16 @@
                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                     <TextBlock Text="🎧" FontSize="18" FontFamily="Segoe UI Emoji"/>
                     <TextBlock Text="{x:Bind Device.Model, Mode=OneWay}" FontWeight="SemiBold" FontSize="14"/>
-                    <!-- Connected Status Dot -->
                     <Ellipse Width="6" Height="6" 
                              Fill="{ThemeResource SystemFillColorSuccessBrush}" 
                              Visibility="{x:Bind Device.IsConnected, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                              ToolTipService.ToolTip="Connected"/>
-                    <!-- Audio Output Indicator -->
-                    <TextBlock Text="🔊" 
-                               FontSize="14" 
-                               FontFamily="Segoe UI Emoji"
+                    <TextBlock Text="🔊" FontSize="14" FontFamily="Segoe UI Emoji"
                                VerticalAlignment="Center"
                                Visibility="{x:Bind Device.IsDefaultAudioOutput, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                                ToolTipService.ToolTip="Playing audio 🎶"/>
                 </StackPanel>
                 
-                <!-- Primary Action Button -->
                 <Button Grid.Column="1" 
                         Command="{x:Bind Device.PrimaryActionCommand, Mode=OneWay}"
                         IsEnabled="{x:Bind Device.CanExecutePrimaryAction, Mode=OneWay}"
@@ -75,7 +59,7 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 
-                <!-- Left AirPod Stack -->
+                <!-- Left AirPod Battery Display -->
                 <Border Grid.Column="0" 
                         CornerRadius="8" 
                         Padding="10,8" 
@@ -87,7 +71,6 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         
-                        <!-- Left Label & Icons -->
                         <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
                             <TextBlock Text="L" FontWeight="SemiBold" FontSize="11" 
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
@@ -102,7 +85,6 @@
                             </StackPanel>
                         </StackPanel>
                         
-                        <!-- Left Battery Visual -->
                         <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center" Spacing="2">
                             <ProgressBar Value="{x:Bind Device.LeftBattery, Mode=OneWay, Converter={StaticResource BatteryToDoubleConverter}}"
                                          Maximum="100" Height="6" CornerRadius="3"/>
@@ -113,7 +95,7 @@
                     </Grid>
                 </Border>
                 
-                <!-- Right AirPod Stack -->
+                <!-- Right AirPod Battery Display -->
                 <Border Grid.Column="2" 
                         CornerRadius="8" 
                         Padding="10,8" 
@@ -125,7 +107,6 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         
-                        <!-- Right Label & Icons -->
                         <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
                             <TextBlock Text="R" FontWeight="SemiBold" FontSize="11" 
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
@@ -140,7 +121,6 @@
                             </StackPanel>
                         </StackPanel>
                         
-                        <!-- Right Battery Visual -->
                         <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center" Spacing="2">
                             <ProgressBar Value="{x:Bind Device.RightBattery, Mode=OneWay, Converter={StaticResource BatteryToDoubleConverter}}"
                                          Maximum="100" Height="6" CornerRadius="3"/>

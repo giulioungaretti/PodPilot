@@ -3,14 +3,27 @@
     x:Class="GUI.App"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:GUI">
+    xmlns:local="using:GUI"
+    xmlns:converters="using:GUI.Converters">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
                 <!-- Other merged dictionaries here -->
             </ResourceDictionary.MergedDictionaries>
-            <!-- Other app resources here -->
+            
+            <!-- Shared Converters -->
+            <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+            <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
+            <converters:BatteryPercentageConverter x:Key="BatteryPercentageConverter"/>
+            <converters:NullableBatteryToDoubleConverter x:Key="BatteryToDoubleConverter"/>
+            <converters:ChargingIconConverter x:Key="ChargingIconConverter"/>
+            <converters:InEarIconConverter x:Key="InEarIconConverter"/>
+            <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
+            
+            <!-- Shared Styles & Brushes -->
+            <SolidColorBrush x:Key="IconColorSuccess" Color="{ThemeResource SystemFillColorSuccess}"/>
+            <SolidColorBrush x:Key="IconColorCaution" Color="{ThemeResource SystemFillColorCaution}"/>
             
             <!-- Pulsating animation for pairing warning icon -->
             <Storyboard x:Key="PulsatingAnimation">
