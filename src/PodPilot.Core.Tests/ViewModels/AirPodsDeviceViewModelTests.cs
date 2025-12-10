@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using NSubstitute;
 using PodPilot.Core.Models;
 using PodPilot.Core.Services;
@@ -124,19 +124,19 @@ public class AirPodsDeviceViewModelTests : IAsyncLifetime, IDisposable
     {
         // Unpaired
         var unpairedVm = CreateViewModel(CreateTestState(pairedDeviceId: null));
-        unpairedVm.PrimaryButtonIcon.Should().Be("?");
+        unpairedVm.PrimaryButtonIcon.Should().Be("🔗");
 
         // Disconnected
         var disconnectedVm = CreateViewModel(CreateTestState(pairedDeviceId: "id", isConnected: false));
-        disconnectedVm.PrimaryButtonIcon.Should().Be("??");
+        disconnectedVm.PrimaryButtonIcon.Should().Be("🔌");
 
         // Connected
         var connectedVm = CreateViewModel(CreateTestState(pairedDeviceId: "id", isConnected: true));
-        connectedVm.PrimaryButtonIcon.Should().Be("??");
+        connectedVm.PrimaryButtonIcon.Should().Be("🔉");
 
         // Audio Active
         var audioActiveVm = CreateViewModel(CreateTestState(pairedDeviceId: "id", isConnected: true, isAudioConnected: true));
-        audioActiveVm.PrimaryButtonIcon.Should().Be("?");
+        audioActiveVm.PrimaryButtonIcon.Should().Be("⛔");
     }
 
     [Fact]

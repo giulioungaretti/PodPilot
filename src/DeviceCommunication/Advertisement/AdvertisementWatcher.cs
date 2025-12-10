@@ -47,6 +47,7 @@ namespace DeviceCommunication.Advertisement
 
         private void OnAdvertisementReceived(BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementReceivedEventArgs args)
         {
+            // TODO: consider adding throttling, we might not need to process every advertisement
             if (_disposed) return;
             
             try
