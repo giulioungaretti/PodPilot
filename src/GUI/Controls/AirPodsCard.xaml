@@ -14,6 +14,7 @@
         <converters:SignalStrengthConverter x:Key="SignalStrengthConverter"/>
         <converters:BoolToOpacityConverter x:Key="BoolToOpacityConverter"/>
         <converters:PairingTooltipConverter x:Key="PairingTooltipConverter"/>
+        <converters:LidStatusConverter x:Key="LidStatusConverter"/>
     </UserControl.Resources>
 
     <Border CornerRadius="12" 
