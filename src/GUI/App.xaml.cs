@@ -19,7 +19,7 @@ namespace GUI;
 public partial class App : Application
 {
     private MainWindow? _mainWindow;
-    private TrayIconService? _trayIconService;
+    private WindowVisibilityService? _windowVisibilityService;
 
     /// <summary>
     /// Gets the current <see cref="App"/> instance in use.
@@ -65,20 +65,20 @@ public partial class App : Application
 
         // New architecture: Paired device watcher (Windows API - source of truth)
         services.AddSingleton<IPairedDeviceWatcher, PairedDeviceWatcher>();
-        
+
         // New architecture: BLE data provider (enrichment data)
         services.AddSingleton<IBleDataProvider, BleDataProvider>();
-        
+
         // New architecture: Unified state service (combines paired devices + BLE)
         services.AddSingleton<IAirPodsStateService, AirPodsStateService>();
 
         // Mid-level services
         services.AddSingleton<IBluetoothConnectionService, BluetoothConnectionService>();
-        
+
         // Platform abstraction services
         services.AddSingleton<IAudioOutputService, AudioOutputService>();
         services.AddSingleton<ISystemLauncherService, SystemLauncherService>();
-        
+
         // UI-layer state manager (wraps IAirPodsStateService with UI thread marshalling)
         services.AddSingleton<IDeviceStateManager, DeviceStateManager>();
 
@@ -102,8 +102,8 @@ public partial class App : Application
 
         _mainWindow = new MainWindow();
 
-        // Initialize tray icon service (requires MainWindow, so created manually)
-        _trayIconService = new TrayIconService(_mainWindow);
+        // Initialize window visibility service (requires MainWindow, so created manually)
+        _windowVisibilityService = new WindowVisibilityService(_mainWindow);
 
         // Start the state manager (which starts paired device watcher + BLE scanning)
         var stateManager = Services.GetRequiredService<IDeviceStateManager>();
@@ -114,9 +114,9 @@ public partial class App : Application
         audioOutputMonitor.Start();
 
         // Get and start background monitoring service from DI
-        //var backgroundMonitoringService = Services.GetRequiredService<IBackgroundDeviceMonitoringService>();
-        //backgroundMonitoringService.PairedDeviceDetected += OnPairedDeviceDetected;
-        //backgroundMonitoringService.Start();
+        var backgroundMonitoringService = Services.GetRequiredService<IBackgroundDeviceMonitoringService>();
+        backgroundMonitoringService.PairedDeviceDetected += OnPairedDeviceDetected;
+        backgroundMonitoringService.Start();
 
         // Initialize ear detection service for auto-pause/resume
         //var earDetectionService = Services.GetRequiredService<EarDetectionService>();
@@ -125,21 +125,20 @@ public partial class App : Application
         _mainWindow.Activate();
     }
 
-    private void OnMainWindowMinimizeRequested(object? sender, EventArgs e)
-    {
-        // When main window is minimized, hide it
-        _trayIconService?.Hide();
-    }
-
     private void OnPairedDeviceDetected(object? sender, AirPodsState state)
     {
+        // Only show notification if the main window is hidden/minimized
+        if (_windowVisibilityService?.IsVisible == true)
+        {
+            return;
+        }
+
         var connectionService = Services.GetRequiredService<IBluetoothConnectionService>();
 
-        // Show notification window
         var notificationWindow = new NotificationWindow(state, connectionService);
         notificationWindow.OpenMainWindowRequested += (s, e) =>
         {
-            _trayIconService?.Show();
+            _windowVisibilityService?.Show();
         };
         notificationWindow.Activate();
     }

@@ -6,7 +6,7 @@ namespace GUI.Services;
 /// <summary>
 /// Service for managing window visibility and minimize behavior using WinUIEx.
 /// </summary>
-internal sealed class TrayIconService : IDisposable
+internal sealed class WindowVisibilityService : IDisposable
 {
     private readonly WindowEx _mainWindow;
     private readonly WindowManager _windowManager;
@@ -21,7 +21,7 @@ internal sealed class TrayIconService : IDisposable
     public bool IsVisible => _windowManager.WindowState != WindowState.Minimized 
                              && _mainWindow.Visible;
 
-    public TrayIconService(WindowEx mainWindow)
+    public WindowVisibilityService(WindowEx mainWindow)
     {
         ArgumentNullException.ThrowIfNull(mainWindow);
         _mainWindow = mainWindow;
