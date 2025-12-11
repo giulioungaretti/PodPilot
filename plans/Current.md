@@ -1,7 +1,12 @@
-# Current Plan
+# Plan
+## Bugs and issues
+- [ ] the minimal airpod window looks ugly and doesn't update like the main window
+- [ ] the logic to bring up the minimal window seems flakey
+- [ ] If I connect to the airpods with the connect audio button, sometimes Device.IsActive seems to be false
+- [ ] The logs seems still verbose and yet not easy to see what's happening
 
-I seen in the GUI that a device is duplicated in the Paired and Discovered devices, we shoul be able to test this independently of the UI.
-Write a test that shows this behaviour so we can explore the root cause.
+## New Features
+- [ ] Implement a feature to allow users to customize the appearance of the minimal airpod window.
 
 ## Optional Next Steps
 
