@@ -2,7 +2,7 @@ using System.Text;
 using Windows.Devices.Bluetooth;
 using Windows.Devices.Enumeration;
 
-namespace DeviceCommunication.Diagnostics;
+namespace CLI.Services;
 
 /// <summary>
 /// Provides diagnostic utilities for investigating Bluetooth device states.

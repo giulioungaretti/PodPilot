@@ -1,7 +1,7 @@
 // Bluetooth adapter state enumeration
-// File: Adapter/AdapterState.cs
+// File: Services/AdapterState.cs
 
-namespace DeviceCommunication.Adapter;
+namespace CLI.Services;
 
 /// <summary>
 /// Represents the operational state of a Bluetooth adapter.

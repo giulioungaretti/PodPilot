@@ -1,11 +1,11 @@
 // Device Communication - C# Implementation
 // Bluetooth adapter utility functions
-// File: Adapter/AdapterUtils.cs
+// File: AdapterUtils.cs
 
 using Windows.Devices.Bluetooth;
 using Windows.Devices.Radios;
 
-namespace DeviceCommunication.Adapter
+namespace CLI.Services
 {
     /// <summary>
     /// Provides utility methods for interacting with the system's Bluetooth adapter.
